@@ -1,0 +1,34 @@
+# Systemd unit для DOCX Template Filler
+# Путь: /etc/systemd/system/docxapp.service
+
+[Unit]
+Description=DOCX Template Filler Web Application
+After=network.target
+
+[Service]
+Type=notify
+User=docxapp
+Group=www-data
+WorkingDirectory=/home/docxapp/docx-template-filler
+Environment="PATH=/home/docxapp/docx-template-filler/venv/bin"
+
+# Основная команда запуска
+ExecStart=/home/docxapp/docx-template-filler/venv/bin/gunicorn \
+    --bind 127.0.0.1:8000 \
+    --workers 2 \
+    --timeout 120 \
+    --access-logfile /var/log/docxapp/access.log \
+    --error-logfile /var/log/docxapp/error.log \
+    --log-level info \
+    app:app
+
+# Автоматический перезапуск при сбое
+Restart=always
+RestartSec=10
+
+# Ограничения безопасности
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

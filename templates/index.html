@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOCX Template Filler</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container py-5">
+        <header class="mb-5">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="display-4 mb-2">DOCX Template Filler</h1>
+                    <p class="lead text-muted">Заполнение документов по шаблонам с использованием тегов Jinja2</p>
+                </div>
+                <button type="button" class="btn btn-lg btn-info" data-bs-toggle="modal" data-bs-target="#instructionModal">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-question-circle me-2" viewBox="0 0 16 16">
+                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                        <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 0 0 .25.246h.811a.25.25 0 0 0 .25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286zm1.557 5.763c0 .533.425.927 1.01.927.609 0 1.028-.394 1.028-.927 0-.552-.42-.94-1.029-.94-.584 0-1.009.388-1.009.94z"/>
+                    </svg>
+                    Как пользоваться?
+                </button>
+            </div>
+        </header>
+
+        <div class="row">
+            <!-- Левая колонка: форма -->
+            <div class="col-lg-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">1. Загрузите DOCX шаблон</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="dropZone" class="drop-zone">
+                            <div class="drop-zone-content">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-cloud-upload mb-3" viewBox="0 0 16 16">
+                                    <path fill-rule="evenodd" d="M4.406 1.342A5.53 5.53 0 0 1 8 0c2.69 0 4.923 2 5.166 4.579C14.758 4.804 16 6.137 16 7.773 16 9.569 14.502 11 12.687 11H10a.5.5 0 0 1 0-1h2.688C13.979 10 15 8.988 15 7.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 2.825 10.328 1 8 1a4.53 4.53 0 0 0-2.941 1.1c-.757.652-1.153 1.438-1.153 2.055v.448l-.445.049C2.064 4.805 1 5.952 1 7.318 1 8.785 2.23 10 3.781 10H6a.5.5 0 0 1 0 1H3.781C1.708 11 0 9.366 0 7.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383z"/>
+                                    <path fill-rule="evenodd" d="M7.646 4.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 5.707V14.5a.5.5 0 0 1-1 0V5.707L5.354 7.854a.5.5 0 1 1-.708-.708l3-3z"/>
+                                </svg>
+                                <p class="mb-2">Перетащите файл .docx сюда или</p>
+                                <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('fileInput').click()">Выберите файл</button>
+                                <input type="file" id="fileInput" accept=".docx" hidden>
+                            </div>
+                            <div id="fileInfo" class="file-info" style="display: none;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-file-earmark-text" viewBox="0 0 16 16">
+                                    <path d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5z"/>
+                                    <path d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0zm0 1v2A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+                                </svg>
+                                <span id="fileName"></span>
+                                <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearFile()">Удалить</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4" id="dataCard">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">2. Заполните данные</h5>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <input type="radio" class="btn-check" name="inputMode" id="modeForm" value="form" autocomplete="off" checked>
+                            <label class="btn btn-outline-light" for="modeForm">Форма</label>
+
+                            <input type="radio" class="btn-check" name="inputMode" id="modeJson" value="json" autocomplete="off">
+                            <label class="btn btn-outline-light" for="modeJson">JSON</label>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Режим формы -->
+                        <div id="formMode" style="display: none;">
+                            <div id="templateNotLoaded" class="alert alert-info">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-info-circle me-2" viewBox="0 0 16 16">
+                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
+                                </svg>
+                                Загрузите шаблон, чтобы увидеть поля для заполнения
+                            </div>
+                            <div id="dynamicForm"></div>
+                        </div>
+
+                        <!-- Режим JSON -->
+                        <div id="jsonMode">
+                            <textarea id="jsonData" class="form-control font-monospace" rows="15" placeholder='Введите JSON данные, например:
+{
+  "name": "Иван Иванов",
+  "date": "25.01.2026",
+  "company": "ООО Пример",
+  "items": [
+    {"name": "Товар 1", "price": "1000"},
+    {"name": "Товар 2", "price": "2000"}
+  ]
+}'></textarea>
+                            <div id="jsonError" class="alert alert-danger mt-2" style="display: none;"></div>
+                            <div id="jsonValid" class="alert alert-success mt-2" style="display: none;">
+                                ✓ JSON валиден
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-grid">
+                    <button id="generateBtn" class="btn btn-primary btn-lg" onclick="generateDocument()">
+                        <span id="btnText">Сгенерировать документ</span>
+                        <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                    </button>
+                </div>
+
+                <div id="resultAlert" class="mt-3" style="display: none;"></div>
+            </div>
+
+            <!-- Правая колонка: справка -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">Синтаксис тегов в DOCX</h6>
+                    </div>
+                    <div class="card-body small">
+                        <h6>Простые переменные:</h6>
+                        <pre class="bg-light p-2 rounded"><code>{{variable}}</code></pre>
+
+                        <h6 class="mt-3">Списки:</h6>
+                        <pre class="bg-light p-2 rounded"><code>{% for item in items %}
+- {{item.name}}
+{% endfor %}</code></pre>
+
+                        <h6 class="mt-3">Таблицы:</h6>
+                        <pre class="bg-light p-2 rounded"><code>{% for row in data %}
+{{row.col1}} | {{row.col2}}
+{% endfor %}</code></pre>
+
+                        <h6 class="mt-3">Условия:</h6>
+                        <pre class="bg-light p-2 rounded"><code>{% if condition %}
+Текст
+{% endif %}</code></pre>
+
+                        <h6 class="mt-3">Фильтры:</h6>
+                        <pre class="bg-light p-2 rounded"><code>{{text|upper}}
+{{text|lower}}
+{{number|round(2)}}</code></pre>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0">Пример JSON</h6>
+                    </div>
+                    <div class="card-body">
+                        <pre class="bg-light p-2 rounded small mb-2"><code id="exampleJson">{
+  "name": "Иван Иванов",
+  "date": "25.01.2026",
+  "company": "ООО Пример",
+  "amount": 50000,
+  "items": [
+    {
+      "name": "Услуга 1",
+      "price": "25000",
+      "qty": "1"
+    },
+    {
+      "name": "Услуга 2",
+      "price": "25000",
+      "qty": "1"
+    }
+  ]
+}</code></pre>
+                        <button class="btn btn-sm btn-success w-100" onclick="copyExample()">Копировать</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно с инструкцией -->
+    <div class="modal fade" id="instructionModal" tabindex="-1" aria-labelledby="instructionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="instructionModalLabel">
+                        📖 Простая инструкция: Как создать и заполнить документ
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-success">
+                        <strong>👋 Добро пожаловать!</strong> Эта инструкция поможет вам создать документ с автоматическим заполнением данных.
+                        Даже если вы мало работаете с компьютером - у вас всё получится!
+                    </div>
+
+                    <!-- Шаг 1 -->
+                    <div class="instruction-step mb-5">
+                        <h3 class="text-primary">
+                            <span class="badge bg-primary me-2">Шаг 1</span>
+                            Подготовка документа в Microsoft Word
+                        </h3>
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-lg-6">
+                                <h5>Что делать:</h5>
+                                <ol class="fs-5">
+                                    <li class="mb-3">Откройте <strong>Microsoft Word</strong></li>
+                                    <li class="mb-3">Создайте обычный документ (договор, заявление и т.д.)</li>
+                                    <li class="mb-3">Вместо данных, которые будут меняться, напишите <strong>метки</strong></li>
+                                </ol>
+
+                                <div class="alert alert-warning">
+                                    <strong>⚠️ Важно!</strong> Метки должны быть в двойных фигурных скобках: <code>{{название}}</code>
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <h5>Пример:</h5>
+                                <div class="bg-light p-3 rounded border">
+                                    <p><strong>❌ Неправильно:</strong></p>
+                                    <p class="text-muted">Договор с Ивановым Иваном</p>
+                                    <hr>
+                                    <p><strong>✅ Правильно:</strong></p>
+                                    <p>Договор с <code class="text-danger">{{Фамилия_Имя}}</code></p>
+                                    <p>Дата: <code class="text-danger">{{дата}}</code></p>
+                                    <p>Сумма: <code class="text-danger">{{сумма}}</code> руб.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info mt-3">
+                            <h6>💡 Как писать названия меток:</h6>
+                            <ul class="mb-0">
+                                <li>✅ Можно: буквы, цифры, подчеркивания (_)</li>
+                                <li>❌ Нельзя: пробелы, дефисы, точки</li>
+                                <li>✅ Примеры: <code>{{Фамилия}}</code>, <code>{{дата_договора}}</code>, <code>{{сумма_рублей}}</code></li>
+                                <li>❌ Плохо: <code>{{Фамилия Имя}}</code>, <code>{{дата-договора}}</code></li>
+                            </ul>
+                        </div>
+
+                        <div class="alert alert-success">
+                            <strong>📝 Совет:</strong> Используйте понятные названия меток. Например: <code>{{телефон}}</code>, <code>{{адрес}}</code>, <code>{{email}}</code>
+                        </div>
+                    </div>
+
+                    <!-- Шаг 2 -->
+                    <div class="instruction-step mb-5">
+                        <h3 class="text-primary">
+                            <span class="badge bg-primary me-2">Шаг 2</span>
+                            Сохранение документа
+                        </h3>
+                        <hr>
+
+                        <ol class="fs-5">
+                            <li class="mb-3">В Word нажмите <strong>"Файл"</strong> → <strong>"Сохранить как"</strong></li>
+                            <li class="mb-3">Выберите место сохранения (например, Рабочий стол)</li>
+                            <li class="mb-3">Дайте понятное имя, например: <code>Договор_шаблон.docx</code></li>
+                            <li class="mb-3">Убедитесь, что формат файла: <strong>Документ Word (.docx)</strong></li>
+                            <li class="mb-3">Нажмите <strong>"Сохранить"</strong></li>
+                        </ol>
+
+                        <div class="alert alert-warning">
+                            <strong>⚠️ Внимание!</strong> Файл должен быть в формате <code>.docx</code>, а не <code>.doc</code> (старый формат)
+                        </div>
+                    </div>
+
+                    <!-- Шаг 3 -->
+                    <div class="instruction-step mb-5">
+                        <h3 class="text-primary">
+                            <span class="badge bg-primary me-2">Шаг 3</span>
+                            Загрузка шаблона в программу
+                        </h3>
+                        <hr>
+
+                        <ol class="fs-5">
+                            <li class="mb-3">На этой странице найдите синюю область с текстом <strong>"Перетащите файл .docx сюда"</strong></li>
+                            <li class="mb-3">
+                                <strong>Способ 1 (проще):</strong>
+                                <ul>
+                                    <li>Откройте папку, где сохранен ваш документ</li>
+                                    <li>Нажмите на файл левой кнопкой мыши и, <strong>не отпуская</strong>, перетащите в синюю область</li>
+                                    <li>Отпустите кнопку мыши</li>
+                                </ul>
+                            </li>
+                            <li class="mb-3">
+                                <strong>Способ 2:</strong>
+                                <ul>
+                                    <li>Нажмите на кнопку <strong>"Выберите файл"</strong></li>
+                                    <li>Найдите ваш документ в открывшемся окне</li>
+                                    <li>Нажмите <strong>"Открыть"</strong></li>
+                                </ul>
+                            </li>
+                        </ol>
+
+                        <div class="alert alert-success">
+                            <strong>✅ Готово!</strong> Программа автоматически найдет все метки в вашем документе и создаст поля для заполнения.
+                        </div>
+                    </div>
+
+                    <!-- Шаг 4 -->
+                    <div class="instruction-step mb-5">
+                        <h3 class="text-primary">
+                            <span class="badge bg-primary me-2">Шаг 4</span>
+                            Заполнение данных
+                        </h3>
+                        <hr>
+
+                        <div class="alert alert-info">
+                            После загрузки документа появятся поля для ввода. Просто заполните их своими данными!
+                        </div>
+
+                        <div class="row">
+                            <div class="col-lg-6">
+                                <h5>Если в вашем документе были метки:</h5>
+                                <div class="bg-light p-3 rounded">
+                                    <code>{{Фамилия_Имя}}</code><br>
+                                    <code>{{дата}}</code><br>
+                                    <code>{{сумма}}</code>
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <h5>То появятся поля:</h5>
+                                <div class="bg-light p-3 rounded">
+                                    <div class="mb-2">
+                                        <label class="form-label small">Фамилия_Имя</label>
+                                        <input type="text" class="form-control form-control-sm" placeholder="Иванов Иван" disabled>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small">дата</label>
+                                        <input type="text" class="form-control form-control-sm" placeholder="25.01.2026" disabled>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small">сумма</label>
+                                        <input type="text" class="form-control form-control-sm" placeholder="150000" disabled>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-success mt-3">
+                            <strong>💡 Подсказка:</strong> Просто введите данные в каждое поле. Например, вместо <code>{{телефон}}</code> будет подставлено то, что вы введете.
+                        </div>
+                    </div>
+
+                    <!-- Шаг 5 -->
+                    <div class="instruction-step mb-5">
+                        <h3 class="text-primary">
+                            <span class="badge bg-primary me-2">Шаг 5</span>
+                            Получение готового документа
+                        </h3>
+                        <hr>
+
+                        <ol class="fs-5">
+                            <li class="mb-3">Проверьте, что все поля заполнены</li>
+                            <li class="mb-3">Нажмите большую синюю кнопку <strong>"Сгенерировать документ"</strong></li>
+                            <li class="mb-3">Подождите 2-3 секунды</li>
+                            <li class="mb-3">Появится зеленое сообщение с кнопкой <strong>"Скачать"</strong></li>
+                            <li class="mb-3">Нажмите <strong>"Скачать"</strong> - файл сохранится на ваш компьютер</li>
+                            <li class="mb-3">Откройте скачанный файл в Word и проверьте - все метки заменятся на ваши данные!</li>
+                        </ol>
+
+                        <div class="alert alert-success">
+                            <strong>🎉 Поздравляем!</strong> Вы создали автоматически заполненный документ!
+                        </div>
+                    </div>
+
+                    <!-- Частые вопросы -->
+                    <div class="instruction-step">
+                        <h3 class="text-danger">
+                            ❓ Что делать, если что-то не работает?
+                        </h3>
+                        <hr>
+
+                        <div class="accordion" id="faqAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                                        Программа не находит метки в моем документе
+                                    </button>
+                                </h2>
+                                <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                    <div class="accordion-body">
+                                        <strong>Решение:</strong>
+                                        <ul>
+                                            <li>Проверьте, что метки написаны в <strong>двойных</strong> фигурных скобках: <code>{{метка}}</code></li>
+                                            <li>Убедитесь, что нет пробелов внутри: <code>{{ метка }}</code> - неправильно</li>
+                                            <li>В названиях меток используйте только буквы, цифры и подчеркивания</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                                        Не могу загрузить файл
+                                    </button>
+                                </h2>
+                                <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                    <div class="accordion-body">
+                                        <strong>Решение:</strong>
+                                        <ul>
+                                            <li>Файл должен быть в формате <code>.docx</code> (не .doc, не .pdf)</li>
+                                            <li>Размер файла не должен превышать 10 МБ</li>
+                                            <li>Попробуйте пересохранить документ: Файл → Сохранить как → Документ Word (.docx)</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                                        В готовом документе метки не заменились
+                                    </button>
+                                </h2>
+                                <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                    <div class="accordion-body">
+                                        <strong>Решение:</strong>
+                                        <ul>
+                                            <li>Убедитесь, что вы заполнили ВСЕ поля перед генерацией</li>
+                                            <li>Проверьте, что названия меток в шаблоне и в полях формы совпадают ТОЧНО</li>
+                                            <li>Попробуйте заново загрузить шаблон</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-primary mt-4">
+                        <h5>📞 Нужна помощь?</h5>
+                        <p class="mb-0">Если что-то не получается, попросите помощи у знакомого или коллеги, кто разбирается в компьютерах. Покажите ему эту инструкцию.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Понятно, начинаю работать!</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
