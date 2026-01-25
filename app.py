@@ -65,14 +65,14 @@ def extract_template_variables(doc_path):
         # Объединение всего текста
         full_text = ' '.join(text_content)
 
-        # Поиск простых переменных {{variable}}
-        simple_vars = re.findall(r'\{\{\s*([a-zA-Z_][a-zA-Z0-9_\.]*?)\s*(?:\|[^}]*)?\}\}', full_text)
+        # Поиск простых переменных {{variable}} (с поддержкой кириллицы)
+        simple_vars = re.findall(r'\{\{\s*([a-zA-Zа-яА-ЯёЁ_][a-zA-Zа-яА-ЯёЁ0-9_\.]*?)\s*(?:\|[^}]*)?\}\}', full_text)
 
-        # Поиск переменных в циклах {% for item in items %}
-        loop_vars = re.findall(r'\{%\s*for\s+\w+\s+in\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*%\}', full_text)
+        # Поиск переменных в циклах {% for item in items %} (с поддержкой кириллицы)
+        loop_vars = re.findall(r'\{%\s*for\s+[a-zA-Zа-яА-ЯёЁ_][a-zA-Zа-яА-ЯёЁ0-9_]*\s+in\s+([a-zA-Zа-яА-ЯёЁ_][a-zA-Zа-яА-ЯёЁ0-9_]*)\s*%\}', full_text)
 
-        # Поиск переменных в условиях {% if variable %}
-        if_vars = re.findall(r'\{%\s*if\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*%\}', full_text)
+        # Поиск переменных в условиях {% if variable %} (с поддержкой кириллицы)
+        if_vars = re.findall(r'\{%\s*if\s+([a-zA-Zа-яА-ЯёЁ_][a-zA-Zа-яА-ЯёЁ0-9_]*)\s*%\}', full_text)
 
         # Объединение всех переменных
         all_vars = set(simple_vars + loop_vars + if_vars)
@@ -287,4 +287,4 @@ def health():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    app.run(debug=True, host='127.0.0.1', port=5001)
