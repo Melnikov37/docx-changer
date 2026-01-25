@@ -1,19 +1,14 @@
 #!/bin/bash
 
-# Скрипт установки SSL сертификата (для Timeweb или любого другого)
+# Скрипт настройки Nginx для SSL
 # Запускать на VPS: bash install_ssl_manual.sh
 #
-# ПЕРЕД ЗАПУСКОМ:
-# 1. Загрузите файлы на сервер:
-#    scp private.key root@85.239.39.232:/tmp/
-#    scp certificate.crt root@85.239.39.232:/tmp/
-#    scp ca_bundle.crt root@85.239.39.232:/tmp/ (опционально)
-# 2. Запустите скрипт
+# ВАЖНО: Сертификаты должны быть уже установлены в /etc/nginx/ssl/
 
 set -e
 
-echo "🔐 Установка SSL сертификата"
-echo "============================="
+echo "🔐 Настройка Nginx для SSL"
+echo "==========================="
 
 # Проверка root
 if [ "$EUID" -ne 0 ]; then
@@ -37,69 +32,26 @@ echo "   - С www: www.$DOMAIN"
 echo "   - HTTP → HTTPS редирект"
 echo ""
 
-# Проверка файлов
-echo "1️⃣ Проверка наличия файлов сертификата..."
-
-CERT_FILES_OK=true
-
-if [ ! -f "/tmp/private.key" ]; then
-    echo "❌ Файл /tmp/private.key не найден"
-    CERT_FILES_OK=false
-fi
-
-if [ ! -f "/tmp/certificate.crt" ]; then
-    echo "❌ Файл /tmp/certificate.crt не найден"
-    CERT_FILES_OK=false
-fi
-
-if [ "$CERT_FILES_OK" = false ]; then
-    echo ""
-    echo "Загрузите файлы на сервер:"
-    echo "  scp private.key root@IP:/tmp/"
-    echo "  scp certificate.crt root@IP:/tmp/"
-    echo "  scp ca_bundle.crt root@IP:/tmp/  (опционально)"
-    echo ""
-    exit 1
-fi
-
-echo "✅ Файлы найдены"
-
-# Создание директории для SSL
-echo ""
-echo "2️⃣ Создание директории для сертификатов..."
+# Определяем путь к сертификату (fullchain имеет приоритет)
 SSL_DIR="/etc/nginx/ssl"
-mkdir -p $SSL_DIR
-echo "✅ Директория создана: $SSL_DIR"
-
-# Копирование файлов
-echo ""
-echo "3️⃣ Копирование сертификатов..."
-
-cp /tmp/private.key $SSL_DIR/$DOMAIN.key
-cp /tmp/certificate.crt $SSL_DIR/$DOMAIN.crt
-
-# Если есть цепочка сертификатов, объединяем
-if [ -f "/tmp/ca_bundle.crt" ]; then
-    echo "   Найден ca_bundle.crt, создаю fullchain..."
-    cat /tmp/certificate.crt /tmp/ca_bundle.crt > $SSL_DIR/$DOMAIN-fullchain.crt
+if [ -f "$SSL_DIR/$DOMAIN-fullchain.crt" ]; then
     CERT_FILE="$SSL_DIR/$DOMAIN-fullchain.crt"
-else
-    echo "   ca_bundle.crt не найден, используем только certificate.crt"
+elif [ -f "$SSL_DIR/$DOMAIN.crt" ]; then
     CERT_FILE="$SSL_DIR/$DOMAIN.crt"
+else
+    echo "⚠️  Сертификат не найден в $SSL_DIR/"
+    echo "Ожидаемые файлы:"
+    echo "  - $SSL_DIR/$DOMAIN.crt или"
+    echo "  - $SSL_DIR/$DOMAIN-fullchain.crt"
 fi
 
-echo "✅ Сертификаты скопированы"
+KEY_FILE="$SSL_DIR/$DOMAIN.key"
+if [ ! -f "$KEY_FILE" ]; then
+    echo "⚠️  Приватный ключ не найден: $KEY_FILE"
+fi
 
-# Установка прав
 echo ""
-echo "4️⃣ Установка прав доступа..."
-chmod 600 $SSL_DIR/$DOMAIN.key
-chmod 644 $SSL_DIR/$DOMAIN*.crt
-echo "✅ Права установлены (ключ: 600, сертификаты: 644)"
-
-# Создание конфигурации Nginx
-echo ""
-echo "5️⃣ Создание конфигурации Nginx..."
+echo "1️⃣ Создание конфигурации Nginx..."
 
 cat > /etc/nginx/sites-available/docxapp << NGINX
 # HTTP - редирект на HTTPS
@@ -119,7 +71,7 @@ server {
 
     # SSL сертификаты
     ssl_certificate $CERT_FILE;
-    ssl_certificate_key $SSL_DIR/$DOMAIN.key;
+    ssl_certificate_key $KEY_FILE;
 
     # SSL настройки (современные и безопасные)
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -160,7 +112,7 @@ echo "✅ Конфигурация создана: /etc/nginx/sites-available/do
 
 # Проверка конфигурации Nginx
 echo ""
-echo "6️⃣ Проверка конфигурации Nginx..."
+echo "2️⃣ Проверка конфигурации Nginx..."
 nginx -t
 
 if [ $? -ne 0 ]; then
@@ -173,7 +125,7 @@ echo "✅ Конфигурация валидна"
 
 # Перезапуск Nginx
 echo ""
-echo "7️⃣ Перезапуск Nginx..."
+echo "3️⃣ Перезапуск Nginx..."
 systemctl reload nginx
 
 if [ $? -ne 0 ]; then
@@ -186,16 +138,16 @@ echo "✅ Nginx перезапущен"
 
 # Удаление временных файлов
 echo ""
-echo "8️⃣ Удаление временных файлов..."
-rm -f /tmp/private.key /tmp/certificate.crt /tmp/ca_bundle.crt
+echo "4️⃣ Удаление временных файлов..."
+rm -f /tmp/private.key /tmp/certificate.crt /tmp/ca_bundle.crt /tmp/*.pem 2>/dev/null || true
 echo "✅ Временные файлы удалены"
 
 # Проверка работы HTTPS
 echo ""
-echo "9️⃣ Проверка работы HTTPS..."
+echo "5️⃣ Проверка работы HTTPS..."
 sleep 2
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://$DOMAIN/ --insecure || echo "000")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://$DOMAIN/ --insecure 2>/dev/null || echo "000")
 
 if [ "$HTTP_CODE" = "200" ]; then
     echo "✅ HTTPS работает! (HTTP $HTTP_CODE)"
@@ -209,7 +161,7 @@ fi
 # Итоговая информация
 echo ""
 echo "======================================"
-echo "✅ SSL сертификат успешно установлен!"
+echo "✅ Nginx настроен для SSL!"
 echo "======================================"
 echo ""
 echo "🌐 Ваше приложение доступно по адресу:"
@@ -218,9 +170,9 @@ echo "   https://www.$DOMAIN"
 echo ""
 echo "🔒 HTTP автоматически перенаправляется на HTTPS"
 echo ""
-echo "📝 Файлы сертификата:"
+echo "📝 Используемые файлы:"
 echo "   Сертификат: $CERT_FILE"
-echo "   Ключ: $SSL_DIR/$DOMAIN.key"
+echo "   Ключ: $KEY_FILE"
 echo ""
 echo "🔍 Проверка SSL:"
 echo "   curl -I https://$DOMAIN"
