@@ -43,15 +43,49 @@ echo ""
 echo "3️⃣ Установка пакетов..."
 apt install -y python3 python3-pip python3-venv nginx git certbot python3-certbot-nginx curl
 
+# 3.5. Установка Docker и Docker Compose
+echo ""
+echo "3️⃣.5️⃣ Установка Docker..."
+if ! command -v docker &> /dev/null; then
+    # Удаление старых версий
+    apt remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
+
+    # Установка зависимостей
+    apt install -y ca-certificates gnupg lsb-release
+
+    # Добавление GPG ключа Docker
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+    # Добавление репозитория Docker
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    # Установка Docker
+    apt update
+    apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    # Запуск Docker
+    systemctl enable docker
+    systemctl start docker
+
+    echo "✅ Docker установлен: $(docker --version)"
+else
+    echo "✅ Docker уже установлен: $(docker --version)"
+fi
+
 # 4. Создание пользователя docxapp (если не существует)
 echo ""
 echo "4️⃣ Создание пользователя..."
 if ! id docxapp &>/dev/null; then
     adduser --disabled-password --gecos "" docxapp
     usermod -aG sudo docxapp
+    usermod -aG docker docxapp
     echo "docxapp ALL=(ALL) NOPASSWD: /bin/systemctl restart docxapp, /bin/systemctl status docxapp, /bin/systemctl stop docxapp, /bin/systemctl start docxapp" >> /etc/sudoers
     echo "✅ Пользователь docxapp создан"
 else
+    usermod -aG docker docxapp
     echo "✅ Пользователь docxapp уже существует"
 fi
 
@@ -83,7 +117,69 @@ pip install -r requirements.txt
 # Создание необходимых директорий
 mkdir -p uploads output docx_templates examples
 
+# Создание .env файла для MinIO
+if [ ! -f .env ]; then
+    echo "🔐 Создание .env файла..."
+    cat > .env << 'ENVFILE'
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin123
+ENVFILE
+    chmod 600 .env
+    echo "✅ .env файл создан"
+fi
+
 echo "✅ Приложение установлено в ~/docx-template-filler"
+
+EOF
+
+# 5.5. Запуск MinIO в Docker
+echo ""
+echo "5️⃣.5️⃣ Запуск MinIO..."
+su - docxapp << 'EOF'
+
+cd docx-template-filler
+
+# Создаем docker-compose только для MinIO (основное приложение работает через systemd)
+cat > docker-compose.minio.yml << 'DOCKERCOMPOSE'
+version: '3.8'
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: docx-minio
+    ports:
+      - "127.0.0.1:9000:9000"      # API (только localhost)
+      - "127.0.0.1:9001:9001"      # Console (только localhost)
+    volumes:
+      - minio-data:/data
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin123}
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+volumes:
+  minio-data:
+DOCKERCOMPOSE
+
+# Запускаем MinIO
+echo "🚀 Запуск MinIO контейнера..."
+docker compose -f docker-compose.minio.yml up -d
+
+# Ждем запуска
+sleep 5
+
+# Проверка статуса
+if docker ps | grep -q docx-minio; then
+    echo "✅ MinIO запущен и работает"
+else
+    echo "⚠️  MinIO может быть не запущен. Проверьте: docker ps"
+fi
 
 EOF
 
@@ -93,7 +189,8 @@ echo "6️⃣ Настройка systemd сервиса..."
 cat > /etc/systemd/system/docxapp.service << 'SYSTEMD'
 [Unit]
 Description=DOCX Template Filler
-After=network.target
+After=network.target docker.service
+Requires=docker.service
 
 [Service]
 Type=notify
@@ -101,6 +198,10 @@ User=docxapp
 Group=www-data
 WorkingDirectory=/home/docxapp/docx-template-filler
 Environment="PATH=/home/docxapp/docx-template-filler/venv/bin"
+Environment="S3_ENDPOINT=localhost:9000"
+Environment="S3_ACCESS_KEY=minioadmin"
+Environment="S3_SECRET_KEY=minioadmin123"
+Environment="S3_BUCKET=templates"
 ExecStart=/home/docxapp/docx-template-filler/venv/bin/gunicorn --bind 127.0.0.1:8000 --workers 2 --timeout 120 app:app
 Restart=always
 RestartSec=10

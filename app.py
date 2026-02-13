@@ -4,12 +4,15 @@ Flask приложение для заполнения DOCX шаблонов
 import os
 import json
 import re
+import uuid
 from datetime import datetime
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 from docxtpl import DocxTemplate
 from docx import Document
+from s3_client import S3Client
+import db
 
 app = Flask(__name__)
 
@@ -22,6 +25,10 @@ app.config['ALLOWED_EXTENSIONS'] = {'docx'}
 # Создание необходимых директорий
 for folder in [app.config['UPLOAD_FOLDER'], app.config['OUTPUT_FOLDER']]:
     Path(folder).mkdir(exist_ok=True)
+
+# Инициализация S3 клиента и базы данных
+s3_client = S3Client()
+db.init_db()
 
 
 def allowed_file(filename):
@@ -284,6 +291,116 @@ def health():
         'status': 'healthy',
         'timestamp': datetime.now().isoformat()
     })
+
+
+@app.route('/templates', methods=['GET'])
+def get_templates():
+    """Получение списка всех шаблонов"""
+    try:
+        templates = db.get_all_templates()
+        return jsonify({'success': True, 'templates': templates})
+    except Exception as e:
+        app.logger.error(f"Error getting templates: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/templates/save', methods=['POST'])
+def save_template():
+    """Сохранение шаблона в библиотеку"""
+    try:
+        template_file = request.form.get('template_file')
+        name = request.form.get('name')
+        description = request.form.get('description', '')
+
+        if not template_file or not name:
+            return jsonify({'error': 'Template file and name are required'}), 400
+
+        # Путь к временному файлу
+        upload_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(template_file))
+
+        if not os.path.exists(upload_path):
+            return jsonify({'error': 'Template file not found'}), 404
+
+        # Извлечение переменных из шаблона
+        variables = extract_template_variables(upload_path)
+
+        # Генерация уникального ключа для S3
+        s3_key = f"{uuid.uuid4()}_{secure_filename(template_file)}"
+
+        # Загрузка в S3
+        if not s3_client.upload_file(upload_path, s3_key):
+            return jsonify({'error': 'Failed to upload to storage'}), 500
+
+        # Сохранение метаданных в БД
+        template_id = db.add_template(
+            name=name,
+            original_filename=template_file,
+            s3_key=s3_key,
+            description=description,
+            variables=variables
+        )
+
+        return jsonify({
+            'success': True,
+            'template_id': template_id,
+            'message': 'Template saved successfully'
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error saving template: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/templates/<int:template_id>', methods=['GET'])
+def load_template(template_id):
+    """Загрузка шаблона из библиотеки"""
+    try:
+        template = db.get_template(template_id)
+
+        if not template:
+            return jsonify({'error': 'Template not found'}), 404
+
+        # Скачиваем файл из S3 во временную папку
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        temp_filename = f"session_{timestamp}_{template['original_filename']}"
+        temp_path = os.path.join(app.config['UPLOAD_FOLDER'], temp_filename)
+
+        if not s3_client.download_file(template['s3_key'], temp_path):
+            return jsonify({'error': 'Failed to load template from storage'}), 500
+
+        # Парсим переменные
+        variables = extract_template_variables(temp_path)
+
+        return jsonify({
+            'success': True,
+            'template_file': temp_filename,
+            'variables': variables,
+            'name': template['name'],
+            'description': template['description']
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error loading template: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/templates/<int:template_id>', methods=['DELETE'])
+def delete_template_endpoint(template_id):
+    """Удаление шаблона из библиотеки"""
+    try:
+        s3_key = db.delete_template(template_id)
+
+        if not s3_key:
+            return jsonify({'error': 'Template not found'}), 404
+
+        # Удаляем файл из S3
+        s3_client.delete_file(s3_key)
+
+        return jsonify({'success': True, 'message': 'Template deleted successfully'})
+
+    except Exception as e:
+        app.logger.error(f"Error deleting template: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

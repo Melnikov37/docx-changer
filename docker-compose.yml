@@ -13,6 +13,12 @@ services:
     environment:
       - FLASK_ENV=production
       - MAX_CONTENT_LENGTH=10485760
+      - S3_ENDPOINT=minio:9000
+      - S3_ACCESS_KEY=${MINIO_ROOT_USER}
+      - S3_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - S3_BUCKET=templates
+    depends_on:
+      - minio
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
@@ -20,3 +26,25 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  minio:
+    image: minio/minio:latest
+    container_name: docx-minio
+    ports:
+      - "9000:9000"      # API
+      - "9001:9001"      # Console
+    volumes:
+      - minio-data:/data
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  minio-data:

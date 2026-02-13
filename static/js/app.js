@@ -3,6 +3,7 @@ let uploadedFile = null;
 let templateFile = null;
 let templateVariables = null;
 let currentMode = 'form';
+let currentTemplateFile = null;
 
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
@@ -503,4 +504,202 @@ function copyExample() {
     setTimeout(function() {
         tooltip.remove();
     }, 2000);
+}
+
+// ===== Функции для работы с библиотекой шаблонов =====
+
+// Загрузка библиотеки при открытии модального окна
+document.getElementById('libraryModal')?.addEventListener('show.bs.modal', function() {
+    loadTemplatesLibrary();
+});
+
+// Загрузка списка шаблонов
+async function loadTemplatesLibrary() {
+    try {
+        const response = await fetch('/templates');
+        const data = await response.json();
+
+        if (data.success) {
+            renderTemplatesList(data.templates);
+        }
+    } catch (error) {
+        console.error('Error loading templates:', error);
+        showTemplateLibraryError('Ошибка загрузки библиотеки');
+    }
+}
+
+// Отрисовка списка шаблонов
+function renderTemplatesList(templates) {
+    const container = document.getElementById('templatesListContainer');
+
+    if (templates.length === 0) {
+        container.innerHTML = '<div class="alert alert-info">Библиотека пуста. Сохраните свой первый шаблон!</div>';
+        return;
+    }
+
+    let html = '<div class="list-group">';
+    templates.forEach(template => {
+        const createdDate = new Date(template.created_at).toLocaleString('ru-RU');
+        html += `
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">${escapeHtml(template.name)}</h6>
+                        <p class="mb-1 text-muted small">${escapeHtml(template.description || 'Без описания')}</p>
+                        <small class="text-muted">${createdDate}</small>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-primary" onclick="loadTemplateFromLibrary(${template.id})">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16">
+                                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                                <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                            </svg>
+                            Загрузить
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteTemplateFromLibrary(${template.id})">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                                <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                            </svg>
+                            Удалить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+// Загрузка шаблона из библиотеки
+async function loadTemplateFromLibrary(templateId) {
+    try {
+        const response = await fetch(`/templates/${templateId}`);
+        const data = await response.json();
+
+        if (data.success) {
+            // Закрываем модальное окно
+            const modal = bootstrap.Modal.getInstance(document.getElementById('libraryModal'));
+            modal.hide();
+
+            // Загружаем шаблон в форму
+            currentTemplateFile = data.template_file;
+            templateFile = data.template_file;
+            templateVariables = data.variables;
+
+            // Обновляем UI
+            uploadedFile = { name: data.name };
+            document.querySelector('.drop-zone-content').style.display = 'none';
+            document.getElementById('fileInfo').style.display = 'flex';
+            document.getElementById('fileName').textContent = data.name;
+
+            // Показываем форму
+            buildDynamicForm(data.variables);
+
+            // Переключаемся в режим формы
+            document.getElementById('modeForm').checked = true;
+            switchMode('form');
+
+            showAlert('success', `✓ Шаблон "${escapeHtml(data.name)}" загружен из библиотеки`);
+        } else {
+            showTemplateLibraryError(data.error || 'Ошибка загрузки шаблона');
+        }
+    } catch (error) {
+        console.error('Error loading template:', error);
+        showTemplateLibraryError('Ошибка загрузки шаблона');
+    }
+}
+
+// Сохранение шаблона в библиотеку
+async function saveTemplateToLibrary(name, description) {
+    if (!templateFile && !uploadedFile) {
+        showAlert('danger', 'Сначала загрузите шаблон');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('template_file', templateFile);
+    formData.append('name', name);
+    formData.append('description', description);
+
+    try {
+        const response = await fetch('/templates/save', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showAlert('success', '✓ Шаблон сохранен в библиотеку');
+        } else {
+            showAlert('danger', '❌ ' + (data.error || 'Ошибка сохранения'));
+        }
+    } catch (error) {
+        console.error('Error saving template:', error);
+        showAlert('danger', '❌ Ошибка сохранения шаблона');
+    }
+}
+
+// Удаление шаблона из библиотеки
+async function deleteTemplateFromLibrary(templateId) {
+    if (!confirm('Вы уверены, что хотите удалить этот шаблон?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/templates/${templateId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Перезагружаем список
+            loadTemplatesLibrary();
+            showTemplateLibraryMessage('success', 'Шаблон удален');
+        } else {
+            showTemplateLibraryError(data.error || 'Ошибка удаления');
+        }
+    } catch (error) {
+        console.error('Error deleting template:', error);
+        showTemplateLibraryError('Ошибка удаления шаблона');
+    }
+}
+
+// Диалог сохранения шаблона
+function showSaveTemplateDialog() {
+    const name = prompt('Введите название шаблона:');
+    if (!name) return;
+
+    const description = prompt('Введите описание (необязательно):');
+
+    saveTemplateToLibrary(name, description || '');
+}
+
+// Вспомогательные функции для библиотеки
+function showTemplateLibraryError(message) {
+    const container = document.getElementById('templatesListContainer');
+    container.innerHTML = `<div class="alert alert-danger">${escapeHtml(message)}</div>`;
+}
+
+function showTemplateLibraryMessage(type, message) {
+    const container = document.getElementById('templatesListContainer');
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${escapeHtml(message)}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    container.prepend(alertDiv);
+
+    setTimeout(() => alertDiv.remove(), 3000);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }

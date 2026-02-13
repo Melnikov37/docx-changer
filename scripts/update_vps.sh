@@ -34,6 +34,18 @@ echo "📦 Обновление зависимостей..."
 source venv/bin/activate
 pip install -r requirements.txt --quiet
 
+# Проверяем и запускаем MinIO если нужно
+echo "🔍 Проверка MinIO..."
+if [ -f docker-compose.minio.yml ]; then
+    if ! docker ps | grep -q docx-minio; then
+        echo "🐳 Запуск MinIO..."
+        docker compose -f docker-compose.minio.yml up -d
+        sleep 3
+    else
+        echo "✅ MinIO уже работает"
+    fi
+fi
+
 # Перезапускаем сервис
 echo "🔄 Перезапуск приложения..."
 sudo systemctl restart docxapp
