@@ -53,6 +53,8 @@ sudo bash install_full.sh
 | `update_vps.sh` | Обновление приложения на сервере |
 | `install_vps.sh` | Установка без Docker (legacy) |
 | `setup_domain_ssl.sh` | Настройка домена и SSL сертификата |
+| `enable_minio_console.sh` | Открыть доступ к MinIO Console из интернета |
+| `setup_minio_nginx.sh` | Настроить Nginx reverse proxy для MinIO с SSL |
 | `backup.sh` | Резервное копирование данных |
 
 ## Переменные окружения
@@ -208,6 +210,56 @@ tar -xzf templates-backup.tar.gz
 docker run --rm -v minio-data:/data -v $(pwd):/backup alpine tar -xzf /backup/minio-data.tar.gz -C /
 ```
 
+## Доступ к MinIO Console
+
+По умолчанию MinIO Console доступен только на localhost:9001 для безопасности.
+
+### Вариант 1: SSH туннель (рекомендуется для разработки)
+
+```bash
+# На вашем Mac
+ssh -L 9001:localhost:9001 root@your-server-ip
+
+# Откройте в браузере
+http://localhost:9001
+```
+
+### Вариант 2: Открыть порт напрямую (простой способ)
+
+```bash
+# На VPS
+sudo bash scripts/enable_minio_console.sh
+```
+
+После этого MinIO Console будет доступен по адресу:
+```
+http://your-server-ip:9001
+```
+
+**⚠️ Важно:** Обязательно смените пароль после открытия доступа!
+
+### Вариант 3: Nginx reverse proxy с SSL (рекомендуется для production)
+
+```bash
+# На VPS
+sudo bash scripts/setup_minio_nginx.sh
+```
+
+Этот скрипт:
+1. Создаст конфигурацию Nginx для MinIO Console
+2. Настроит поддомен (например, minio.example.com)
+3. Подготовит к установке SSL сертификата
+
+После настройки установите SSL:
+```bash
+sudo certbot --nginx -d minio.example.com -d api.minio.example.com
+```
+
+MinIO Console будет доступен по адресу:
+```
+https://minio.example.com
+```
+
 ## Безопасность
 
 ### Рекомендации для production
@@ -225,21 +277,37 @@ docker run --rm -v minio-data:/data -v $(pwd):/backup alpine tar -xzf /backup/mi
    sudo systemctl restart docxapp
    ```
 
-3. **Настройте SSL для MinIO Console** (опционально):
-   - MinIO Console доступен только на localhost:9001
-   - Для удаленного доступа используйте SSH туннель:
-     ```bash
-     ssh -L 9001:localhost:9001 root@your-server-ip
-     ```
-   - Откройте в браузере: http://localhost:9001
+3. **Обновите MinIO** с новыми паролями:
+   ```bash
+   su - docxapp
+   cd docx-template-filler
+   nano .env  # Измените пароли
+   docker compose -f docker-compose.minio.yml down
+   docker compose -f docker-compose.minio.yml up -d
+   ```
 
 4. **Настройте firewall**:
    ```bash
-   # Разрешить только HTTP/HTTPS и SSH
+   # Базовая настройка
    ufw allow 22/tcp
    ufw allow 80/tcp
    ufw allow 443/tcp
+
+   # Если открываете порт MinIO напрямую
+   ufw allow 9001/tcp
+
+   # Активация
    ufw enable
+   ```
+
+5. **Добавьте базовую аутентификацию Nginx** (дополнительная защита):
+   ```bash
+   sudo apt install apache2-utils
+   sudo htpasswd -c /etc/nginx/.htpasswd admin
+
+   # Добавьте в конфигурацию nginx для minio:
+   # auth_basic "MinIO Console";
+   # auth_basic_user_file /etc/nginx/.htpasswd;
    ```
 
 ## Поддержка
