@@ -703,3 +703,216 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// ===== Функции для работы с историей сгенерированных документов =====
+
+// Загрузка истории при открытии модального окна
+document.getElementById('historyModal')?.addEventListener('show.bs.modal', function() {
+    loadHistory();
+});
+
+// Загрузка истории документов
+async function loadHistory() {
+    const container = document.getElementById('historyListContainer');
+
+    try {
+        container.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Загрузка...</span></div></div>';
+
+        const response = await fetch('/history?limit=100');
+        const data = await response.json();
+
+        if (data.success) {
+            renderHistoryList(data.documents);
+        } else {
+            showHistoryError('Ошибка загрузки истории');
+        }
+    } catch (error) {
+        console.error('Error loading history:', error);
+        showHistoryError('Ошибка загрузки истории');
+    }
+}
+
+// Отрисовка списка истории
+function renderHistoryList(documents) {
+    const container = document.getElementById('historyListContainer');
+
+    if (documents.length === 0) {
+        container.innerHTML = '<div class="alert alert-info">История пуста. Сгенерируйте свой первый документ!</div>';
+        return;
+    }
+
+    let html = '<div class="list-group">';
+    documents.forEach(doc => {
+        const createdDate = new Date(doc.created_at).toLocaleString('ru-RU');
+        const fileSize = doc.file_size ? formatFileSize(doc.file_size) : 'неизвестно';
+
+        html += `
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-text text-primary" viewBox="0 0 16 16">
+                                <path d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5z"/>
+                                <path d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0zm0 1v2A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+                            </svg>
+                            ${escapeHtml(doc.output_filename)}
+                        </h6>
+                        <p class="mb-1 text-muted small">
+                            <strong>Шаблон:</strong> ${escapeHtml(doc.template_name)}
+                        </p>
+                        <small class="text-muted">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-calendar3" viewBox="0 0 16 16">
+                                <path d="M14 0H2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2zM1 3.857C1 3.384 1.448 3 2 3h12c.552 0 1 .384 1 .857v10.286c0 .473-.448.857-1 .857H2c-.552 0-1-.384-1-.857V3.857z"/>
+                                <path d="M6.5 7a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-9 3a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-9 3a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm3 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+                            </svg>
+                            ${createdDate} • ${fileSize}
+                        </small>
+                    </div>
+                    <div class="btn-group-vertical">
+                        <button class="btn btn-sm btn-primary" onclick="downloadFromHistory(${doc.id})">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16">
+                                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                                <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                            </svg>
+                            Скачать
+                        </button>
+                        <button class="btn btn-sm btn-info" onclick="viewHistoryData(${doc.id})">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+                                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                                <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+                            </svg>
+                            Данные
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteFromHistory(${doc.id})">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                                <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                            </svg>
+                            Удалить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+// Скачивание документа из истории
+async function downloadFromHistory(docId) {
+    try {
+        window.location.href = `/history/${docId}/download`;
+    } catch (error) {
+        console.error('Error downloading from history:', error);
+        showAlert('danger', 'Ошибка скачивания документа');
+    }
+}
+
+// Просмотр данных документа
+async function viewHistoryData(docId) {
+    try {
+        const response = await fetch(`/history/${docId}/data`);
+        const data = await response.json();
+
+        if (data.success) {
+            // Создаем модальное окно для показа данных
+            const jsonStr = JSON.stringify(data.json_data, null, 2);
+
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-info text-white">
+                            <h5 class="modal-title">Данные документа: ${escapeHtml(data.output_filename)}</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-2"><strong>Шаблон:</strong> ${escapeHtml(data.template_name)}</p>
+                            <p class="mb-2"><strong>Дата создания:</strong> ${new Date(data.created_at).toLocaleString('ru-RU')}</p>
+                            <hr>
+                            <h6>JSON данные:</h6>
+                            <pre class="bg-light p-3 rounded"><code>${escapeHtml(jsonStr)}</code></pre>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                            <button type="button" class="btn btn-primary" onclick="navigator.clipboard.writeText('${jsonStr.replace(/'/g, "\\'")}')">
+                                Копировать JSON
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+
+            // Удаляем модалку после закрытия
+            modal.addEventListener('hidden.bs.modal', () => modal.remove());
+        } else {
+            showAlert('danger', data.error || 'Ошибка загрузки данных');
+        }
+    } catch (error) {
+        console.error('Error viewing document data:', error);
+        showAlert('danger', 'Ошибка загрузки данных документа');
+    }
+}
+
+// Удаление документа из истории
+async function deleteFromHistory(docId) {
+    if (!confirm('Вы уверены, что хотите удалить этот документ из истории?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/history/${docId}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Перезагружаем список
+            loadHistory();
+            showHistoryMessage('success', 'Документ удален из истории');
+        } else {
+            showHistoryError(data.error || 'Ошибка удаления');
+        }
+    } catch (error) {
+        console.error('Error deleting from history:', error);
+        showHistoryError('Ошибка удаления документа');
+    }
+}
+
+// Форматирование размера файла
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Вспомогательные функции для истории
+function showHistoryError(message) {
+    const container = document.getElementById('historyListContainer');
+    container.innerHTML = `<div class="alert alert-danger">${escapeHtml(message)}</div>`;
+}
+
+function showHistoryMessage(type, message) {
+    const container = document.getElementById('historyListContainer');
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${escapeHtml(message)}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    container.prepend(alertDiv);
+
+    setTimeout(() => alertDiv.remove(), 3000);
+}

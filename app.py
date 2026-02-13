@@ -250,6 +250,30 @@ def generate():
         except Exception as e:
             return jsonify({'error': f'Template processing error: {str(e)}'}), 500
 
+        # Сохранение в историю (MinIO + БД)
+        try:
+            # Генерируем уникальный ключ для S3
+            s3_key = f"generated/{uuid.uuid4()}_{output_filename}"
+
+            # Загружаем в MinIO
+            if s3_client.upload_file(output_path, s3_key):
+                # Получаем размер файла
+                file_size = os.path.getsize(output_path)
+
+                # Сохраняем метаданные в БД
+                doc_id = db.add_generated_document(
+                    template_name=filename,
+                    output_filename=output_filename,
+                    s3_key=s3_key,
+                    json_data=context,
+                    file_size=file_size
+                )
+
+                app.logger.info(f"Document saved to history: ID={doc_id}, S3={s3_key}")
+        except Exception as e:
+            app.logger.error(f"Error saving to history: {e}")
+            # Продолжаем даже если сохранение в историю не удалось
+
         return jsonify({
             'success': True,
             'filename': output_filename,
@@ -400,6 +424,86 @@ def delete_template_endpoint(template_id):
 
     except Exception as e:
         app.logger.error(f"Error deleting template: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/history', methods=['GET'])
+def get_history():
+    """Получение истории сгенерированных документов"""
+    try:
+        limit = request.args.get('limit', 100, type=int)
+        documents = db.get_all_generated_documents(limit=limit)
+        return jsonify({'success': True, 'documents': documents})
+    except Exception as e:
+        app.logger.error(f"Error getting history: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/history/<int:doc_id>/download', methods=['GET'])
+def download_from_history(doc_id):
+    """Скачивание документа из истории"""
+    try:
+        document = db.get_generated_document(doc_id)
+
+        if not document:
+            return jsonify({'error': 'Document not found'}), 404
+
+        # Скачиваем файл из S3 во временную папку
+        temp_path = os.path.join(app.config['OUTPUT_FOLDER'], document['output_filename'])
+
+        if not s3_client.download_file(document['s3_key'], temp_path):
+            return jsonify({'error': 'Failed to download from storage'}), 500
+
+        return send_file(
+            temp_path,
+            as_attachment=True,
+            download_name=document['output_filename'],
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+
+    except Exception as e:
+        app.logger.error(f"Error downloading from history: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/history/<int:doc_id>/data', methods=['GET'])
+def get_history_data(doc_id):
+    """Получение JSON данных документа из истории"""
+    try:
+        document = db.get_generated_document(doc_id)
+
+        if not document:
+            return jsonify({'error': 'Document not found'}), 404
+
+        return jsonify({
+            'success': True,
+            'template_name': document['template_name'],
+            'output_filename': document['output_filename'],
+            'json_data': document.get('json_data', {}),
+            'created_at': document['created_at']
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error getting document data: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/history/<int:doc_id>', methods=['DELETE'])
+def delete_from_history(doc_id):
+    """Удаление документа из истории"""
+    try:
+        s3_key = db.delete_generated_document(doc_id)
+
+        if not s3_key:
+            return jsonify({'error': 'Document not found'}), 404
+
+        # Удаляем файл из S3
+        s3_client.delete_file(s3_key)
+
+        return jsonify({'success': True, 'message': 'Document deleted successfully'})
+
+    except Exception as e:
+        app.logger.error(f"Error deleting from history: {e}")
         return jsonify({'error': str(e)}), 500
 
 
