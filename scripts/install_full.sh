@@ -220,11 +220,16 @@ echo "✅ Сервис настроен и запущен"
 echo ""
 echo "7️⃣ Настройка Nginx..."
 
-# Удаляем дефолтный конфиг
-rm -f /etc/nginx/sites-enabled/default
+# Проверяем, существует ли уже конфигурация
+if [ -f /etc/nginx/sites-available/docxapp ]; then
+    echo "⚠️  Конфигурация Nginx уже существует, пропускаю..."
+    echo "   Для восстановления домена используйте: sudo bash scripts/fix_hostname.sh"
+else
+    # Удаляем дефолтный конфиг
+    rm -f /etc/nginx/sites-enabled/default
 
-# Создаем конфиг для приложения
-cat > /etc/nginx/sites-available/docxapp << 'NGINX'
+    # Создаем конфиг для приложения
+    cat > /etc/nginx/sites-available/docxapp << 'NGINX'
 server {
     listen 80;
     server_name _;
@@ -245,16 +250,17 @@ server {
 }
 NGINX
 
-# Активируем конфиг
-ln -sf /etc/nginx/sites-available/docxapp /etc/nginx/sites-enabled/
+    # Активируем конфиг
+    ln -sf /etc/nginx/sites-available/docxapp /etc/nginx/sites-enabled/
 
-# Проверяем конфиг
-nginx -t
+    # Проверяем конфиг
+    nginx -t
 
-# Перезапускаем Nginx
-systemctl restart nginx
+    # Перезапускаем Nginx
+    systemctl restart nginx
 
-echo "✅ Nginx настроен"
+    echo "✅ Nginx настроен"
+fi
 
 # 8. Проверка статуса
 echo ""
