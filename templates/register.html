@@ -1,13 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}Register - DOCX Template Filler{% endblock %}
+{% block title %}Регистрация - DOCX Template Filler{% endblock %}
 
 {% block content %}
+<nav class="navbar navbar-light bg-white border-bottom">
+    <div class="container">
+        <a class="navbar-brand" href="/">
+            <strong>DOCX Template Filler</strong>
+        </a>
+    </div>
+</nav>
 <div class="auth-container">
     <div class="auth-card">
         <div class="auth-header">
             <h1 class="auth-title">DOCX Template Filler</h1>
-            <p class="auth-subtitle">Create a new account</p>
+            <p class="auth-subtitle">Создайте новый аккаунт</p>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -23,42 +30,43 @@
 
         <form method="POST" class="auth-form" id="registerForm">
             <div class="mb-3">
-                <label for="username" class="form-label">Username</label>
+                <label for="username" class="form-label">Имя пользователя</label>
                 <input type="text" class="form-control" id="username" name="username"
-                       placeholder="Choose a username" minlength="3" required autofocus>
-                <div class="form-text">At least 3 characters</div>
+                       placeholder="Придумайте имя пользователя" minlength="3" required autofocus>
+                <div class="form-text">Минимум 3 символа</div>
             </div>
 
             <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
                 <input type="email" class="form-control" id="email" name="email"
-                       placeholder="Enter your email" required>
+                       placeholder="Введите ваш email" required>
             </div>
 
             <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
+                <label for="password" class="form-label">Пароль</label>
                 <input type="password" class="form-control" id="password" name="password"
-                       placeholder="Create a password" minlength="6" required>
-                <div class="form-text">At least 6 characters</div>
+                       placeholder="Придумайте пароль" minlength="6" required>
+                <div class="form-text">Минимум 6 символов</div>
             </div>
 
             <div class="mb-3">
-                <label for="password_confirm" class="form-label">Confirm Password</label>
+                <label for="password_confirm" class="form-label">Подтвердите пароль</label>
                 <input type="password" class="form-control" id="password_confirm" name="password_confirm"
-                       placeholder="Confirm your password" required>
+                       placeholder="Повторите пароль" required>
             </div>
 
             <div class="d-grid">
-                <button type="submit" class="btn btn-primary btn-lg">Register</button>
+                <button type="submit" class="btn btn-primary btn-lg">Зарегистрироваться</button>
             </div>
         </form>
 
         <div class="auth-footer">
-            <p>Already have an account? <a href="{{ url_for('login') }}">Sign In</a></p>
+            <p>Уже есть аккаунт? <a href="{{ url_for('login') }}">Войти</a></p>
         </div>
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script>
 document.getElementById('registerForm').addEventListener('submit', function(e) {
     const password = document.getElementById('password').value;
@@ -66,7 +74,7 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
 
     if (password !== passwordConfirm) {
         e.preventDefault();
-        alert('Passwords do not match!');
+        showToast('error', 'Ошибка', 'Пароли не совпадают!');
         return false;
     }
 });

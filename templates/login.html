@@ -1,13 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}Login - DOCX Template Filler{% endblock %}
+{% block title %}Вход - DOCX Template Filler{% endblock %}
 
 {% block content %}
+<nav class="navbar navbar-light bg-white border-bottom">
+    <div class="container">
+        <a class="navbar-brand" href="/">
+            <strong>DOCX Template Filler</strong>
+        </a>
+    </div>
+</nav>
 <div class="auth-container">
     <div class="auth-card">
         <div class="auth-header">
             <h1 class="auth-title">DOCX Template Filler</h1>
-            <p class="auth-subtitle">Sign in to your account</p>
+            <p class="auth-subtitle">Войдите в свой аккаунт</p>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -23,25 +30,66 @@
 
         <form method="POST" class="auth-form">
             <div class="mb-3">
-                <label for="username" class="form-label">Username</label>
+                <label for="username" class="form-label">Имя пользователя</label>
                 <input type="text" class="form-control" id="username" name="username"
-                       placeholder="Enter your username" required autofocus>
+                       placeholder="Введите имя пользователя" required autofocus>
             </div>
 
             <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
+                <label for="password" class="form-label">Пароль</label>
                 <input type="password" class="form-control" id="password" name="password"
-                       placeholder="Enter your password" required>
+                       placeholder="Введите пароль" required>
             </div>
 
             <div class="d-grid">
-                <button type="submit" class="btn btn-primary btn-lg">Sign In</button>
+                <button type="submit" class="btn btn-primary btn-lg">Войти</button>
             </div>
         </form>
 
         <div class="auth-footer">
-            <p>Don't have an account? <a href="{{ url_for('register') }}">Register</a></p>
+            <p>Нет аккаунта? <a href="{{ url_for('register') }}">Зарегистрироваться</a></p>
         </div>
     </div>
 </div>
+
+<script>
+document.querySelector('.auth-form').addEventListener('submit', function(e) {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (username.length < 3) {
+        e.preventDefault();
+        showValidationError('username', 'Имя пользователя должно быть минимум 3 символа');
+        return false;
+    }
+
+    if (password.length < 6) {
+        e.preventDefault();
+        showValidationError('password', 'Пароль должен быть минимум 6 символов');
+        return false;
+    }
+});
+
+function showValidationError(fieldId, message) {
+    const field = document.getElementById(fieldId);
+    field.classList.add('is-invalid');
+
+    const oldFeedback = field.nextElementSibling;
+    if (oldFeedback && oldFeedback.classList.contains('invalid-feedback')) {
+        oldFeedback.remove();
+    }
+
+    const feedback = document.createElement('div');
+    feedback.className = 'invalid-feedback';
+    feedback.textContent = message;
+    field.parentNode.appendChild(feedback);
+
+    field.addEventListener('input', function() {
+        field.classList.remove('is-invalid');
+        if (feedback.parentNode) {
+            feedback.remove();
+        }
+    }, { once: true });
+}
+</script>
 {% endblock %}

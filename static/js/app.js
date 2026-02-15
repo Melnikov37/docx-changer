@@ -5,6 +5,48 @@ let templateVariables = null;
 let currentMode = 'form';
 let currentTemplateFile = null;
 
+// ===== Toast notification system =====
+
+// Toast notification system
+function showToast(type, title, message, duration = 5000) {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type} show`;
+    toast.setAttribute('role', 'alert');
+
+    const iconMap = {
+        success: '✓',
+        error: '✗',
+        warning: '⚠',
+        info: 'ℹ'
+    };
+
+    toast.innerHTML = `
+        <div class="toast-header">
+            <strong class="me-auto">${iconMap[type] || ''} ${title}</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            ${message}
+        </div>
+    `;
+
+    container.appendChild(toast);
+
+    const bsToast = new bootstrap.Toast(toast, { delay: duration });
+    bsToast.show();
+
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
 // ===== Обёртка fetch с обработкой 401 =====
 
 async function fetchWithAuth(url, options = {}) {
