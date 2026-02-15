@@ -5,7 +5,9 @@ import os
 import json
 import re
 import uuid
+import zipfile
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file
 from werkzeug.utils import secure_filename
@@ -35,6 +37,94 @@ def allowed_file(filename):
     """Проверка допустимого расширения файла"""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+
+def validate_file_path(base_dir, filename):
+    """
+    Валидация пути файла для предотвращения Path Traversal атак.
+
+    Args:
+        base_dir: Базовая директория
+        filename: Имя файла
+
+    Returns:
+        Path: Безопасный путь к файлу
+
+    Raises:
+        ValueError: Если путь выходит за пределы base_dir
+    """
+    base_path = Path(base_dir).resolve()
+    safe_filename = secure_filename(filename)
+    file_path = (base_path / safe_filename).resolve()
+
+    # Проверка, что файл находится внутри base_dir
+    if not str(file_path).startswith(str(base_path)):
+        raise ValueError(f"Path traversal detected: {filename}")
+
+    return file_path
+
+
+def validate_docx_file(file_stream, max_size_mb=10, max_uncompressed_mb=50):
+    """
+    Валидация DOCX файла для предотвращения атак (Zip Bomb, XXE).
+
+    Args:
+        file_stream: Поток байтов файла
+        max_size_mb: Максимальный размер файла (сжатого)
+        max_uncompressed_mb: Максимальный размер распакованного
+
+    Returns:
+        bool: True если файл валиден
+
+    Raises:
+        ValueError: Если файл не прошел валидацию
+    """
+    # Сохраняем текущую позицию
+    original_position = file_stream.tell()
+
+    try:
+        # Проверка размера
+        file_stream.seek(0, 2)  # Перейти в конец
+        size = file_stream.tell()
+        file_stream.seek(0)  # Вернуться в начало
+
+        if size > max_size_mb * 1024 * 1024:
+            raise ValueError(f"File too large: {size} bytes")
+
+        # Читаем содержимое для проверки
+        content = file_stream.read()
+        file_stream.seek(0)
+
+        # Проверка, что это действительно ZIP архив (DOCX)
+        try:
+            with zipfile.ZipFile(BytesIO(content), 'r') as zip_ref:
+                # Проверка наличия обязательных файлов DOCX
+                required_files = ['[Content_Types].xml', 'word/document.xml']
+                file_list = zip_ref.namelist()
+
+                for req_file in required_files:
+                    if req_file not in file_list:
+                        raise ValueError(f"Invalid DOCX: missing {req_file}")
+
+                # Защита от Zip Bomb
+                total_uncompressed = sum(info.file_size for info in zip_ref.infolist())
+                if total_uncompressed > max_uncompressed_mb * 1024 * 1024:
+                    raise ValueError(
+                        f"Suspicious file: uncompressed size {total_uncompressed} exceeds limit"
+                    )
+
+                # Проверка compression ratio (защита от Zip Bomb)
+                if size > 0 and total_uncompressed > size * 100:
+                    raise ValueError("Suspicious compression ratio detected")
+
+            return True
+
+        except zipfile.BadZipFile:
+            raise ValueError("File is not a valid ZIP/DOCX archive")
+
+    finally:
+        # Восстанавливаем позицию
+        file_stream.seek(original_position)
 
 
 def cleanup_old_files():
@@ -179,6 +269,13 @@ def parse_template():
         if not allowed_file(file.filename):
             return jsonify({'error': 'Only .docx files are allowed'}), 400
 
+        # Валидация содержимого DOCX файла
+        try:
+            validate_docx_file(file.stream)
+        except ValueError as e:
+            app.logger.warning(f"File validation failed: {e}")
+            return jsonify({'error': f'Invalid file: {str(e)}'}), 400
+
         # Сохранение временного файла
         filename = secure_filename(file.filename)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -219,8 +316,14 @@ def generate():
         template_file = request.form.get('template_file')
 
         if template_file:
-            # Используем ранее загруженный файл из сессии
-            upload_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(template_file))
+            # Валидация пути для предотвращения Path Traversal
+            try:
+                validated_path = validate_file_path(app.config['UPLOAD_FOLDER'], template_file)
+                upload_path = str(validated_path)
+            except ValueError as e:
+                app.logger.warning(f"Path traversal attempt: {e}")
+                return jsonify({'error': 'Invalid file path'}), 400
+
             if not os.path.exists(upload_path):
                 return jsonify({'error': 'Template file not found. Please upload again.'}), 400
             # Извлекаем оригинальное имя файла
@@ -237,6 +340,13 @@ def generate():
 
             if not allowed_file(file.filename):
                 return jsonify({'error': 'Only .docx files are allowed'}), 400
+
+            # Валидация содержимого DOCX файла
+            try:
+                validate_docx_file(file.stream)
+            except ValueError as e:
+                app.logger.warning(f"File validation failed: {e}")
+                return jsonify({'error': f'Invalid file: {str(e)}'}), 400
 
             # Сохранение загруженного шаблона
             filename = secure_filename(file.filename)
@@ -303,9 +413,13 @@ def generate():
 def download(filename):
     """Скачивание сгенерированного документа"""
     try:
-        # Безопасность: проверка что файл существует и находится в правильной директории
-        safe_filename = secure_filename(filename)
-        file_path = os.path.join(app.config['OUTPUT_FOLDER'], safe_filename)
+        # Валидация пути для предотвращения Path Traversal
+        try:
+            validated_path = validate_file_path(app.config['OUTPUT_FOLDER'], filename)
+            file_path = str(validated_path)
+        except ValueError as e:
+            app.logger.warning(f"Path traversal attempt in download: {e}")
+            return jsonify({'error': 'Invalid file path'}), 400
 
         if not os.path.exists(file_path):
             return jsonify({'error': 'File not found'}), 404
@@ -313,7 +427,7 @@ def download(filename):
         return send_file(
             file_path,
             as_attachment=True,
-            download_name=safe_filename,
+            download_name=secure_filename(filename),
             mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         )
 
@@ -353,8 +467,13 @@ def save_template():
         if not template_file or not name:
             return jsonify({'error': 'Template file and name are required'}), 400
 
-        # Путь к временному файлу
-        upload_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(template_file))
+        # Валидация пути для предотвращения Path Traversal
+        try:
+            validated_path = validate_file_path(app.config['UPLOAD_FOLDER'], template_file)
+            upload_path = str(validated_path)
+        except ValueError as e:
+            app.logger.warning(f"Path traversal attempt in save_template: {e}")
+            return jsonify({'error': 'Invalid file path'}), 400
 
         if not os.path.exists(upload_path):
             return jsonify({'error': 'Template file not found'}), 404
