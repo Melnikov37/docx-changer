@@ -160,10 +160,13 @@ fi
 echo "3️⃣ Creating data directories..."
 su - docxapp -c "cd docx-template-filler && mkdir -p data uploads output docx_templates"
 
-# Остановка старого systemd сервиса (если запущен)
-echo "4️⃣ Stopping old systemd service (if running)..."
+# Остановка старых сервисов (если запущены)
+echo "4️⃣ Stopping old services..."
 systemctl stop docxapp 2>/dev/null || true
 systemctl disable docxapp 2>/dev/null || true
+systemctl stop nginx 2>/dev/null || true
+systemctl disable nginx 2>/dev/null || true
+echo "   Old services stopped"
 
 # Docker Hub login (если есть credentials)
 if [ -f "/tmp/.docker_creds" ]; then
@@ -191,15 +194,19 @@ echo ""
 echo "Waiting for application to start..."
 sleep 5
 
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:5000/health" || echo "000")
+# Check web container directly
+RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:80/health" || echo "000")
 if [ "$RESPONSE" = "200" ]; then
     echo ""
     echo "✅ Application is running (HTTP $RESPONSE)"
+elif [ "$RESPONSE" = "302" ]; then
+    echo ""
+    echo "✅ Application is running (HTTP $RESPONSE - redirect to login)"
 else
     echo ""
     echo "⚠️  Application status: HTTP $RESPONSE"
     echo "Checking logs..."
-    su - docxapp -c "cd docx-template-filler && docker compose logs --tail=20 web"
+    su - docxapp -c "cd docx-template-filler && docker compose logs --tail=30"
     exit 1
 fi
 
