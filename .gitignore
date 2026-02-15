@@ -28,6 +28,12 @@ output/*
 !output/.gitkeep
 templates.db
 
+# SSL certificates (never commit!)
+ssl/*.crt
+ssl/*.key
+ssl/*.pem
+!ssl/.gitkeep
+
 # OS
 .DS_Store
 Thumbs.db

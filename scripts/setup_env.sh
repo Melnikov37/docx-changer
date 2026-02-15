@@ -35,6 +35,32 @@ read -s -p "MinIO password (default: minioadmin): " MINIO_PASS
 echo ""
 MINIO_PASS=${MINIO_PASS:-minioadmin}
 
+# SSL сертификаты
+echo ""
+echo "SSL Certificate configuration:"
+echo "  1) Use files in ./ssl/ directory (default)"
+echo "  2) Use Let's Encrypt (/etc/letsencrypt/live/...)"
+echo "  3) Custom paths"
+read -p "Choose option [1]: " SSL_OPTION
+SSL_OPTION=${SSL_OPTION:-1}
+
+case $SSL_OPTION in
+    2)
+        read -p "Domain name (e.g., docxfiller.ru): " DOMAIN
+        SSL_CERT="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
+        SSL_KEY="/etc/letsencrypt/live/$DOMAIN/privkey.pem"
+        ;;
+    3)
+        read -p "Path to certificate (.crt): " SSL_CERT
+        read -p "Path to private key (.key): " SSL_KEY
+        ;;
+    *)
+        SSL_CERT="./ssl/certificate.crt"
+        SSL_KEY="./ssl/private.key"
+        echo "Put your certificate.crt and private.key in ./ssl/ directory"
+        ;;
+esac
+
 # Создаем .env
 cat > "$ENV_FILE" << EOF
 # DOCX Template Filler - Environment Configuration
@@ -54,6 +80,10 @@ S3_BUCKET=templates
 
 # Flask environment
 FLASK_ENV=production
+
+# SSL certificates
+SSL_CERT_PATH=$SSL_CERT
+SSL_KEY_PATH=$SSL_KEY
 EOF
 
 # Устанавливаем права
