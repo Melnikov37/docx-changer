@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Register - DOCX Template Filler{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1 class="auth-title">DOCX Template Filler</h1>
+            <p class="auth-subtitle">Create a new account</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" class="auth-form" id="registerForm">
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" class="form-control" id="username" name="username"
+                       placeholder="Choose a username" minlength="3" required autofocus>
+                <div class="form-text">At least 3 characters</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="email" name="email"
+                       placeholder="Enter your email" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" name="password"
+                       placeholder="Create a password" minlength="6" required>
+                <div class="form-text">At least 6 characters</div>
+            </div>
+
+            <div class="mb-3">
+                <label for="password_confirm" class="form-label">Confirm Password</label>
+                <input type="password" class="form-control" id="password_confirm" name="password_confirm"
+                       placeholder="Confirm your password" required>
+            </div>
+
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary btn-lg">Register</button>
+            </div>
+        </form>
+
+        <div class="auth-footer">
+            <p>Already have an account? <a href="{{ url_for('login') }}">Sign In</a></p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('registerForm').addEventListener('submit', function(e) {
+    const password = document.getElementById('password').value;
+    const passwordConfirm = document.getElementById('password_confirm').value;
+
+    if (password !== passwordConfirm) {
+        e.preventDefault();
+        alert('Passwords do not match!');
+        return false;
+    }
+});
+</script>
+{% endblock %}

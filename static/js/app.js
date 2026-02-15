@@ -5,6 +5,21 @@ let templateVariables = null;
 let currentMode = 'form';
 let currentTemplateFile = null;
 
+// ===== Обёртка fetch с обработкой 401 =====
+
+async function fetchWithAuth(url, options = {}) {
+    const response = await fetch(url, options);
+
+    // Обработка 401 Unauthorized
+    if (response.status === 401) {
+        // Redirect to login page
+        window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+        throw new Error('Session expired. Redirecting to login...');
+    }
+
+    return response;
+}
+
 // Форматирование имени поля для отображения
 function formatFieldName(name) {
     return name
@@ -167,7 +182,7 @@ async function parseTemplate(file) {
     formData.append('template', file);
 
     try {
-        const response = await fetch('/parse-template', {
+        const response = await fetchWithAuth('/parse-template', {
             method: 'POST',
             body: formData
         });
@@ -456,7 +471,7 @@ async function generateDocument() {
     formData.append('data', jsonData);
 
     try {
-        const response = await fetch('/generate', {
+        const response = await fetchWithAuth('/generate', {
             method: 'POST',
             body: formData
         });
@@ -541,7 +556,7 @@ document.getElementById('libraryModal')?.addEventListener('show.bs.modal', funct
 // Загрузка списка шаблонов
 async function loadTemplatesLibrary() {
     try {
-        const response = await fetch('/templates');
+        const response = await fetchWithAuth('/templates');
         const data = await response.json();
 
         if (data.success) {
@@ -601,7 +616,7 @@ function renderTemplatesList(templates) {
 // Загрузка шаблона из библиотеки
 async function loadTemplateFromLibrary(templateId) {
     try {
-        const response = await fetch(`/templates/${templateId}`);
+        const response = await fetchWithAuth(`/templates/${templateId}`);
         const data = await response.json();
 
         if (data.success) {
@@ -650,7 +665,7 @@ async function saveTemplateToLibrary(name, description) {
     formData.append('description', description);
 
     try {
-        const response = await fetch('/templates/save', {
+        const response = await fetchWithAuth('/templates/save', {
             method: 'POST',
             body: formData
         });
@@ -674,7 +689,7 @@ function deleteTemplateFromLibrary(templateId) {
         'Вы уверены, что хотите удалить этот шаблон?',
         async () => {
             try {
-                const response = await fetch(`/templates/${templateId}`, {
+                const response = await fetchWithAuth(`/templates/${templateId}`, {
                     method: 'DELETE'
                 });
 
@@ -770,7 +785,7 @@ async function loadHistory() {
     try {
         container.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Загрузка...</span></div></div>';
 
-        const response = await fetch('/history?limit=100');
+        const response = await fetchWithAuth('/history?limit=100');
         const data = await response.json();
 
         if (data.success) {
@@ -865,7 +880,7 @@ async function downloadFromHistory(docId) {
 // Просмотр данных документа
 async function viewHistoryData(docId) {
     try {
-        const response = await fetch(`/history/${docId}/data`);
+        const response = await fetchWithAuth(`/history/${docId}/data`);
         const data = await response.json();
 
         if (data.success) {
@@ -919,7 +934,7 @@ function deleteFromHistory(docId) {
         'Вы уверены, что хотите удалить этот документ из истории?',
         async () => {
             try {
-                const response = await fetch(`/history/${docId}`, {
+                const response = await fetchWithAuth(`/history/${docId}`, {
                     method: 'DELETE'
                 });
 

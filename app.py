@@ -9,12 +9,14 @@ import zipfile
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from docxtpl import DocxTemplate
 from docx import Document
 from s3_client import S3Client
 import db
+from models import User
 
 app = Flask(__name__)
 
@@ -23,14 +25,29 @@ app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB максимум
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['OUTPUT_FOLDER'] = 'output'
 app.config['ALLOWED_EXTENSIONS'] = {'docx'}
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Создание необходимых директорий
 for folder in [app.config['UPLOAD_FOLDER'], app.config['OUTPUT_FOLDER']]:
     Path(folder).mkdir(exist_ok=True)
 
+# Инициализация Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page.'
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Загрузка пользователя по ID для Flask-Login"""
+    return User.get(int(user_id))
+
+
 # Инициализация S3 клиента и базы данных
 s3_client = S3Client()
 db.init_db()
+db.migrate_db()
 
 
 def allowed_file(filename):
@@ -247,6 +264,7 @@ def extract_template_variables(doc_path):
 
 
 @app.route('/')
+@login_required
 def index():
     """Главная страница"""
     cleanup_old_files()
@@ -254,6 +272,7 @@ def index():
 
 
 @app.route('/parse-template', methods=['POST'])
+@login_required
 def parse_template():
     """Парсинг шаблона и извлечение переменных"""
     try:
@@ -307,6 +326,7 @@ def parse_template():
 
 
 @app.route('/generate', methods=['POST'])
+@login_required
 def generate():
     """Генерация документа из шаблона и данных JSON"""
     try:
@@ -390,7 +410,8 @@ def generate():
                     output_filename=output_filename,
                     s3_key=s3_key,
                     json_data=context,
-                    file_size=file_size
+                    file_size=file_size,
+                    user_id=current_user.id
                 )
 
                 app.logger.info(f"Document saved to history: ID={doc_id}, S3={s3_key}")
@@ -410,6 +431,7 @@ def generate():
 
 
 @app.route('/download/<filename>')
+@login_required
 def download(filename):
     """Скачивание сгенерированного документа"""
     try:
@@ -445,11 +467,94 @@ def health():
     })
 
 
+# ===== Endpoints авторизации =====
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Страница входа"""
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+
+        if not username or not password:
+            flash('Please fill in all fields', 'danger')
+            return render_template('login.html')
+
+        user = User.verify_credentials(username, password)
+        if user:
+            login_user(user)
+            next_page = request.args.get('next')
+            return redirect(next_page or url_for('index'))
+        else:
+            flash('Invalid username or password', 'danger')
+
+    return render_template('login.html')
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """Страница регистрации"""
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        password_confirm = request.form.get('password_confirm', '')
+
+        # Валидация
+        errors = []
+        if not username or len(username) < 3:
+            errors.append('Username must be at least 3 characters')
+        if not email or '@' not in email:
+            errors.append('Please enter a valid email')
+        if not password or len(password) < 6:
+            errors.append('Password must be at least 6 characters')
+        if password != password_confirm:
+            errors.append('Passwords do not match')
+
+        # Проверка существующего пользователя
+        if db.get_user_by_username(username):
+            errors.append('Username already exists')
+        if db.get_user_by_email(email):
+            errors.append('Email already registered')
+
+        if errors:
+            for error in errors:
+                flash(error, 'danger')
+            return render_template('register.html')
+
+        # Создание пользователя
+        user = User.create(username, email, password)
+        if user:
+            login_user(user)
+            flash('Registration successful!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Registration failed. Please try again.', 'danger')
+
+    return render_template('register.html')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    """Выход из системы"""
+    logout_user()
+    flash('You have been logged out', 'info')
+    return redirect(url_for('login'))
+
+
 @app.route('/templates', methods=['GET'])
+@login_required
 def get_templates():
-    """Получение списка всех шаблонов"""
+    """Получение списка всех шаблонов пользователя"""
     try:
-        templates = db.get_all_templates()
+        templates = db.get_all_templates(user_id=current_user.id)
         return jsonify({'success': True, 'templates': templates})
     except Exception as e:
         app.logger.error(f"Error getting templates: {e}")
@@ -457,6 +562,7 @@ def get_templates():
 
 
 @app.route('/templates/save', methods=['POST'])
+@login_required
 def save_template():
     """Сохранение шаблона в библиотеку"""
     try:
@@ -494,7 +600,8 @@ def save_template():
             original_filename=template_file,
             s3_key=s3_key,
             description=description,
-            variables=variables
+            variables=variables,
+            user_id=current_user.id
         )
 
         return jsonify({
@@ -509,10 +616,11 @@ def save_template():
 
 
 @app.route('/templates/<int:template_id>', methods=['GET'])
+@login_required
 def load_template(template_id):
     """Загрузка шаблона из библиотеки"""
     try:
-        template = db.get_template(template_id)
+        template = db.get_template(template_id, user_id=current_user.id)
 
         if not template:
             return jsonify({'error': 'Template not found'}), 404
@@ -542,10 +650,11 @@ def load_template(template_id):
 
 
 @app.route('/templates/<int:template_id>', methods=['DELETE'])
+@login_required
 def delete_template_endpoint(template_id):
     """Удаление шаблона из библиотеки"""
     try:
-        s3_key = db.delete_template(template_id)
+        s3_key = db.delete_template(template_id, user_id=current_user.id)
 
         if not s3_key:
             return jsonify({'error': 'Template not found'}), 404
@@ -561,11 +670,12 @@ def delete_template_endpoint(template_id):
 
 
 @app.route('/history', methods=['GET'])
+@login_required
 def get_history():
-    """Получение истории сгенерированных документов"""
+    """Получение истории сгенерированных документов пользователя"""
     try:
         limit = request.args.get('limit', 100, type=int)
-        documents = db.get_all_generated_documents(limit=limit)
+        documents = db.get_all_generated_documents(limit=limit, user_id=current_user.id)
         return jsonify({'success': True, 'documents': documents})
     except Exception as e:
         app.logger.error(f"Error getting history: {e}")
@@ -573,10 +683,11 @@ def get_history():
 
 
 @app.route('/history/<int:doc_id>/download', methods=['GET'])
+@login_required
 def download_from_history(doc_id):
     """Скачивание документа из истории"""
     try:
-        document = db.get_generated_document(doc_id)
+        document = db.get_generated_document(doc_id, user_id=current_user.id)
 
         if not document:
             return jsonify({'error': 'Document not found'}), 404
@@ -600,10 +711,11 @@ def download_from_history(doc_id):
 
 
 @app.route('/history/<int:doc_id>/data', methods=['GET'])
+@login_required
 def get_history_data(doc_id):
     """Получение JSON данных документа из истории"""
     try:
-        document = db.get_generated_document(doc_id)
+        document = db.get_generated_document(doc_id, user_id=current_user.id)
 
         if not document:
             return jsonify({'error': 'Document not found'}), 404
@@ -622,10 +734,11 @@ def get_history_data(doc_id):
 
 
 @app.route('/history/<int:doc_id>', methods=['DELETE'])
+@login_required
 def delete_from_history(doc_id):
     """Удаление документа из истории"""
     try:
-        s3_key = db.delete_generated_document(doc_id)
+        s3_key = db.delete_generated_document(doc_id, user_id=current_user.id)
 
         if not s3_key:
             return jsonify({'error': 'Document not found'}), 404

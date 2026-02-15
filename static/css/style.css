@@ -218,3 +218,129 @@ header .lead {
         width: 100%;
     }
 }
+
+/* ===== Стили для страниц авторизации ===== */
+
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem;
+}
+
+.auth-card {
+    background: white;
+    border-radius: 1rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 420px;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.auth-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.auth-subtitle {
+    color: #6c757d;
+    font-size: 1rem;
+    margin-bottom: 0;
+}
+
+.auth-form .form-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.auth-form .form-control {
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid #dee2e6;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.auth-form .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+}
+
+.auth-form .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    padding: 0.75rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.auth-form .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #dee2e6;
+}
+
+.auth-footer p {
+    margin-bottom: 0;
+    color: #6c757d;
+}
+
+.auth-footer a {
+    color: #667eea;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
+}
+
+/* User dropdown styling */
+.dropdown-toggle::after {
+    margin-left: 0.5rem;
+}
+
+.dropdown-item-text {
+    font-size: 0.875rem;
+}
+
+/* Адаптивность для header с user menu */
+@media (max-width: 991px) {
+    header > .d-flex {
+        flex-direction: column !important;
+        gap: 1rem;
+    }
+
+    header .d-flex.align-items-center.gap-2 {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    header .btn-group {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    header .dropdown {
+        width: 100%;
+    }
+
+    header .dropdown .btn {
+        width: 100%;
+    }
+}

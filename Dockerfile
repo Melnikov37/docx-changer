@@ -9,6 +9,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libxslt-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Копирование requirements и установка Python зависимостей
@@ -20,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 COPY . .
 
 # Создание необходимых директорий
-RUN mkdir -p uploads output docx_templates examples static/css static/js templates
+RUN mkdir -p uploads output docx_templates examples static/css static/js templates data
 
 # Установка прав
 RUN chmod -R 755 /app
