@@ -77,6 +77,7 @@ function switchMode(mode) {
 // Настройка зоны drag-and-drop
 function setupDropZone() {
     const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
 
     dropZone.addEventListener('dragover', function(e) {
         e.preventDefault();
@@ -102,19 +103,34 @@ function setupDropZone() {
     });
 
     // Клик по зоне открывает диалог выбора файла
-    dropZone.addEventListener('click', function() {
-        document.getElementById('fileInput').click();
+    // Исключаем клики по кнопкам и ссылкам внутри зоны
+    dropZone.addEventListener('click', function(e) {
+        // Не открывать диалог, если клик был по кнопке или ссылке
+        if (e.target.closest('button') || e.target.closest('a') || e.target === fileInput) {
+            return;
+        }
+        fileInput.click();
     });
 }
 
 // Настройка input для выбора файла
 function setupFileInput() {
     const fileInput = document.getElementById('fileInput');
+    const selectFileBtn = document.getElementById('selectFileBtn');
+
     fileInput.addEventListener('change', function(e) {
         if (e.target.files.length > 0) {
             handleFile(e.target.files[0]);
         }
     });
+
+    // Обработчик для кнопки выбора файла
+    if (selectFileBtn) {
+        selectFileBtn.addEventListener('click', function(e) {
+            e.stopPropagation(); // Предотвращаем всплытие к dropZone
+            fileInput.click();
+        });
+    }
 }
 
 // Обработка выбранного файла
@@ -652,41 +668,68 @@ async function saveTemplateToLibrary(name, description) {
     }
 }
 
-// Удаление шаблона из библиотеки
-async function deleteTemplateFromLibrary(templateId) {
-    if (!confirm('Вы уверены, что хотите удалить этот шаблон?')) {
+// Удаление шаблона из библиотеки (с модальным подтверждением)
+function deleteTemplateFromLibrary(templateId) {
+    showConfirmDialog(
+        'Вы уверены, что хотите удалить этот шаблон?',
+        async () => {
+            try {
+                const response = await fetch(`/templates/${templateId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Перезагружаем список
+                    loadTemplatesLibrary();
+                    showTemplateLibraryMessage('success', 'Шаблон удален');
+                } else {
+                    showTemplateLibraryError(data.error || 'Ошибка удаления');
+                }
+            } catch (error) {
+                console.error('Error deleting template:', error);
+                showTemplateLibraryError('Ошибка удаления шаблона');
+            }
+        }
+    );
+}
+
+// Диалог сохранения шаблона (модальное окно)
+function showSaveTemplateDialog() {
+    if (!templateFile && !uploadedFile) {
+        showAlert('danger', 'Сначала загрузите шаблон');
         return;
     }
 
-    try {
-        const response = await fetch(`/templates/${templateId}`, {
-            method: 'DELETE'
-        });
+    // Очищаем форму
+    document.getElementById('templateName').value = '';
+    document.getElementById('templateDescription').value = '';
 
-        const data = await response.json();
+    // Показываем модальное окно
+    const modal = new bootstrap.Modal(document.getElementById('saveTemplateModal'));
+    modal.show();
+}
 
-        if (data.success) {
-            // Перезагружаем список
-            loadTemplatesLibrary();
-            showTemplateLibraryMessage('success', 'Шаблон удален');
-        } else {
-            showTemplateLibraryError(data.error || 'Ошибка удаления');
-        }
-    } catch (error) {
-        console.error('Error deleting template:', error);
-        showTemplateLibraryError('Ошибка удаления шаблона');
+// Обработчик подтверждения сохранения шаблона
+document.getElementById('confirmSaveTemplate')?.addEventListener('click', async function() {
+    const name = document.getElementById('templateName').value.trim();
+    const description = document.getElementById('templateDescription').value.trim();
+
+    if (!name) {
+        document.getElementById('templateName').classList.add('is-invalid');
+        return;
     }
-}
 
-// Диалог сохранения шаблона
-function showSaveTemplateDialog() {
-    const name = prompt('Введите название шаблона:');
-    if (!name) return;
+    document.getElementById('templateName').classList.remove('is-invalid');
 
-    const description = prompt('Введите описание (необязательно):');
+    // Закрываем модальное окно
+    const modal = bootstrap.Modal.getInstance(document.getElementById('saveTemplateModal'));
+    modal.hide();
 
-    saveTemplateToLibrary(name, description || '');
-}
+    // Сохраняем шаблон
+    await saveTemplateToLibrary(name, description);
+});
 
 // Вспомогательные функции для библиотеки
 function showTemplateLibraryError(message) {
@@ -870,30 +913,31 @@ async function viewHistoryData(docId) {
     }
 }
 
-// Удаление документа из истории
-async function deleteFromHistory(docId) {
-    if (!confirm('Вы уверены, что хотите удалить этот документ из истории?')) {
-        return;
-    }
+// Удаление документа из истории (с модальным подтверждением)
+function deleteFromHistory(docId) {
+    showConfirmDialog(
+        'Вы уверены, что хотите удалить этот документ из истории?',
+        async () => {
+            try {
+                const response = await fetch(`/history/${docId}`, {
+                    method: 'DELETE'
+                });
 
-    try {
-        const response = await fetch(`/history/${docId}`, {
-            method: 'DELETE'
-        });
+                const data = await response.json();
 
-        const data = await response.json();
-
-        if (data.success) {
-            // Перезагружаем список
-            loadHistory();
-            showHistoryMessage('success', 'Документ удален из истории');
-        } else {
-            showHistoryError(data.error || 'Ошибка удаления');
+                if (data.success) {
+                    // Перезагружаем список
+                    loadHistory();
+                    showHistoryMessage('success', 'Документ удален из истории');
+                } else {
+                    showHistoryError(data.error || 'Ошибка удаления');
+                }
+            } catch (error) {
+                console.error('Error deleting from history:', error);
+                showHistoryError('Ошибка удаления документа');
+            }
         }
-    } catch (error) {
-        console.error('Error deleting from history:', error);
-        showHistoryError('Ошибка удаления документа');
-    }
+    );
 }
 
 // Форматирование размера файла
@@ -925,3 +969,37 @@ function showHistoryMessage(type, message) {
 
     setTimeout(() => alertDiv.remove(), 3000);
 }
+
+// ===== Модальное окно подтверждения =====
+
+let confirmCallback = null;
+
+// Показать модальное окно подтверждения
+function showConfirmDialog(message, onConfirm) {
+    const modal = document.getElementById('confirmDeleteModal');
+    const messageEl = document.getElementById('deleteConfirmMessage');
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+
+    // Устанавливаем сообщение
+    messageEl.textContent = message;
+
+    // Сохраняем callback
+    confirmCallback = onConfirm;
+
+    // Показываем модальное окно
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+}
+
+// Обработчик кнопки подтверждения удаления
+document.getElementById('confirmDeleteBtn')?.addEventListener('click', function() {
+    // Закрываем модальное окно
+    const modal = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
+    modal.hide();
+
+    // Вызываем callback
+    if (confirmCallback) {
+        confirmCallback();
+        confirmCallback = null;
+    }
+});
