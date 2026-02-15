@@ -5,6 +5,13 @@ let templateVariables = null;
 let currentMode = 'form';
 let currentTemplateFile = null;
 
+// Форматирование имени поля для отображения
+function formatFieldName(name) {
+    return name
+        .replace(/_/g, ' ')  // Заменяем _ на пробелы
+        .replace(/\b\w/g, l => l.toUpperCase());  // Capitalize каждое слово
+}
+
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
     setupDropZone();
@@ -194,27 +201,30 @@ function buildDynamicForm(variables) {
 
         if (variable.type === 'simple') {
             // Простое текстовое поле
+            const displayName = formatFieldName(key);
             fieldGroup.innerHTML = `
-                <label for="field_${key}" class="form-label">${key}</label>
-                <input type="text" class="form-control" id="field_${key}" name="${key}" placeholder="Введите ${key}">
+                <label for="field_${key}" class="form-label">${displayName}</label>
+                <input type="text" class="form-control" id="field_${key}" name="${key}" placeholder="Введите ${displayName}">
             `;
         } else if (variable.type === 'boolean') {
             // Checkbox для boolean переменных
+            const displayName = formatFieldName(key);
             fieldGroup.innerHTML = `
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="field_${key}" name="${key}">
-                    <label class="form-check-label" for="field_${key}">${key}</label>
+                    <label class="form-check-label" for="field_${key}">${displayName}</label>
                 </div>
             `;
         } else if (variable.type === 'array') {
             // Массив объектов
+            const displayName = formatFieldName(key);
             fieldGroup.innerHTML = `
-                <label class="form-label fw-bold">${key} (массив)</label>
+                <label class="form-label fw-bold">${displayName} (массив)</label>
                 <div id="array_${key}" class="border rounded p-3 bg-light">
                     <!-- Элементы массива будут добавлены здесь -->
                 </div>
                 <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addArrayItem('${key}', ${JSON.stringify(variable.fields || [])})">
-                    + Добавить ${key}
+                    + Добавить ${displayName}
                 </button>
             `;
 
@@ -243,10 +253,11 @@ function addArrayItem(arrayName, fields) {
     if (fields.length > 0) {
         fieldsHtml += '<div class="row">';
         for (const field of fields) {
+            const displayName = formatFieldName(field);
             fieldsHtml += `
                 <div class="col-md-6 mb-2">
-                    <label class="form-label small">${field}</label>
-                    <input type="text" class="form-control form-control-sm" name="${arrayName}[${itemIndex}].${field}" placeholder="${field}">
+                    <label class="form-label small">${displayName}</label>
+                    <input type="text" class="form-control form-control-sm" name="${arrayName}[${itemIndex}].${field}" placeholder="${displayName}">
                 </div>
             `;
         }
