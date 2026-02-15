@@ -180,13 +180,11 @@ function buildDynamicForm(variables) {
     templateNotLoaded.style.display = 'none';
     dynamicForm.innerHTML = '';
 
-    // Сортируем переменные: сначала простые, потом сложные
+    // Сортируем переменные по порядку вхождения в документе
     const sortedKeys = Object.keys(variables).sort((a, b) => {
-        const typeA = variables[a].type;
-        const typeB = variables[b].type;
-        if (typeA === 'simple' && typeB !== 'simple') return -1;
-        if (typeA !== 'simple' && typeB === 'simple') return 1;
-        return a.localeCompare(b);
+        const posA = variables[a].position || 9999;
+        const posB = variables[b].position || 9999;
+        return posA - posB;
     });
 
     for (const key of sortedKeys) {

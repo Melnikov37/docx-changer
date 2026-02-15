@@ -72,14 +72,28 @@ def extract_template_variables(doc_path):
         # Объединение всего текста
         full_text = ' '.join(text_content)
 
-        # Поиск простых переменных {{variable}} (с поддержкой кириллицы)
-        simple_vars = re.findall(r'\{\{\s*([a-zA-Zа-яА-ЯёЁ_][a-zA-Zа-яА-ЯёЁ0-9_\.]*?)\s*(?:\|[^}]*)?\}\}', full_text)
+        # Поиск простых переменных {{variable}} (с поддержкой кириллицы) с позициями
+        simple_pattern = r'\{\{\s*([a-zA-Zа-яА-ЯёЁ_][a-zA-Zа-яА-ЯёЁ0-9_\.]*?)\s*(?:\|[^}]*)?\}\}'
+        simple_matches = [(m.group(1), m.start()) for m in re.finditer(simple_pattern, full_text)]
 
-        # Поиск переменных в циклах {% for item in items %} (с поддержкой кириллицы)
-        loop_vars = re.findall(r'\{%\s*for\s+[a-zA-Zа-яА-ЯёЁ_][a-zA-Zа-яА-ЯёЁ0-9_]*\s+in\s+([a-zA-Zа-яА-ЯёЁ_][a-zA-Zа-яА-ЯёЁ0-9_]*)\s*%\}', full_text)
+        # Поиск переменных в циклах {% for item in items %} с позициями
+        loop_pattern = r'\{%\s*for\s+[a-zA-Zа-яА-ЯёЁ_][a-zA-Zа-яА-ЯёЁ0-9_]*\s+in\s+([a-zA-Zа-яА-ЯёЁ_][a-zA-Zа-яА-ЯёЁ0-9_]*)\s*%\}'
+        loop_matches = [(m.group(1), m.start()) for m in re.finditer(loop_pattern, full_text)]
 
-        # Поиск переменных в условиях {% if variable %} (с поддержкой кириллицы)
-        if_vars = re.findall(r'\{%\s*if\s+([a-zA-Zа-яА-ЯёЁ_][a-zA-Zа-яА-ЯёЁ0-9_]*)\s*%\}', full_text)
+        # Поиск переменных в условиях {% if variable %} с позициями
+        if_pattern = r'\{%\s*if\s+([a-zA-Zа-яА-ЯёЁ_][a-zA-Zа-яА-ЯёЁ0-9_]*)\s*%\}'
+        if_matches = [(m.group(1), m.start()) for m in re.finditer(if_pattern, full_text)]
+
+        # Создаем словарь позиций (первое вхождение каждой переменной)
+        var_positions = {}
+        for var, pos in simple_matches + loop_matches + if_matches:
+            if var not in var_positions:
+                var_positions[var] = pos
+
+        # Списки переменных (для определения типов)
+        simple_vars = [m[0] for m in simple_matches]
+        loop_vars = [m[0] for m in loop_matches]
+        if_vars = [m[0] for m in if_matches]
 
         # Объединение всех переменных
         all_vars = set(simple_vars + loop_vars + if_vars)
@@ -102,28 +116,28 @@ def extract_template_variables(doc_path):
                 if root in loop_vars:
                     arrays.add(root)
                     if root not in fields:
-                        fields[root] = {'type': 'array', 'fields': set()}
+                        fields[root] = {'type': 'array', 'fields': set(), 'position': var_positions.get(root, 9999)}
                     # Добавляем поле объекта
                     fields[root]['fields'].add(parts[1])
                 else:
                     # Простой вложенный объект
                     if root not in fields:
-                        fields[root] = {'type': 'object', 'fields': set()}
+                        fields[root] = {'type': 'object', 'fields': set(), 'position': var_positions.get(root, 9999)}
                     fields[root]['fields'].add('.'.join(parts[1:]))
             else:
                 # Определяем тип переменной
                 if var in loop_vars:
                     arrays.add(var)
                     if var not in fields:
-                        fields[var] = {'type': 'array', 'fields': set()}
+                        fields[var] = {'type': 'array', 'fields': set(), 'position': var_positions.get(var, 9999)}
                 elif var in if_vars:
                     # Условная переменная - вероятно boolean
                     if var not in fields:
-                        fields[var] = {'type': 'boolean'}
+                        fields[var] = {'type': 'boolean', 'position': var_positions.get(var, 9999)}
                 else:
                     # Простая переменная
                     if var not in fields:
-                        fields[var] = {'type': 'simple'}
+                        fields[var] = {'type': 'simple', 'position': var_positions.get(var, 9999)}
 
         # Преобразуем sets в lists для JSON
         result = {}
