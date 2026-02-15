@@ -119,6 +119,15 @@ FLASK_ENV=production
     echo "📤 Uploading .env to server..."
     $SCP_CMD "$ENV_TMP" "$USER@$HOST:/tmp/.env.new"
     rm -f "$ENV_TMP"
+
+    # Передаем Docker credentials если есть
+    if [ -n "$DOCKER_USERNAME" ] && [ -n "$DOCKER_PASSWORD" ]; then
+        echo "🔐 Setting up Docker Hub credentials..."
+        DOCKER_TMP=$(mktemp)
+        echo "${DOCKER_USERNAME}:${DOCKER_PASSWORD}" > "$DOCKER_TMP"
+        $SCP_CMD "$DOCKER_TMP" "$USER@$HOST:/tmp/.docker_creds"
+        rm -f "$DOCKER_TMP"
+    fi
 fi
 
 # Выполняем обновление на удаленном сервере
@@ -155,6 +164,15 @@ su - docxapp -c "cd docx-template-filler && mkdir -p data uploads output docx_te
 echo "4️⃣ Stopping old systemd service (if running)..."
 systemctl stop docxapp 2>/dev/null || true
 systemctl disable docxapp 2>/dev/null || true
+
+# Docker Hub login (если есть credentials)
+if [ -f "/tmp/.docker_creds" ]; then
+    echo "🔐 Logging into Docker Hub..."
+    DOCKER_USER=$(cut -d: -f1 /tmp/.docker_creds)
+    DOCKER_PASS=$(cut -d: -f2 /tmp/.docker_creds)
+    echo "$DOCKER_PASS" | su - docxapp -c "docker login -u $DOCKER_USER --password-stdin" 2>/dev/null || true
+    rm -f /tmp/.docker_creds
+fi
 
 # Сборка и запуск Docker
 echo "5️⃣ Building and starting Docker containers..."
