@@ -1,0 +1,72 @@
+name: Scheduled Backup
+
+on:
+  schedule:
+    # Запускается каждую неделю в воскресенье в 3:00 UTC
+    - cron: '0 3 * * 0'
+  workflow_dispatch:  # Можно запустить вручную
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup SSH
+      env:
+        SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      run: |
+        mkdir -p ~/.ssh
+        echo "$SSH_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+
+    - name: Run backup on VPS
+      env:
+        SSH_HOST: ${{ secrets.VPS_HOST }}
+        SSH_USER: ${{ secrets.VPS_USER }}
+      run: |
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST << 'ENDSSH'
+          cd /home/docxapp/docx-template-filler
+
+          # Создаем директорию для бэкапов
+          mkdir -p ~/backups
+
+          # Бэкап базы данных
+          if [ -f templates.db ]; then
+            cp templates.db ~/backups/templates_$(date +%Y%m%d).db
+            echo "✅ Database backed up"
+          fi
+
+          # Бэкап MinIO данных
+          if docker ps | grep -q docx-minio; then
+            docker run --rm \
+              -v minio-data:/data \
+              -v ~/backups:/backup \
+              alpine tar czf /backup/minio_$(date +%Y%m%d).tar.gz /data
+            echo "✅ MinIO data backed up"
+          fi
+
+          # Список бэкапов
+          echo ""
+          echo "📦 Available backups:"
+          ls -lh ~/backups/ | tail -10
+
+          # Удаляем старые бэкапы (старше 30 дней)
+          find ~/backups/ -type f -mtime +30 -delete
+        ENDSSH
+
+    - name: Cleanup
+      if: always()
+      run: |
+        rm -f ~/.ssh/deploy_key
+
+    - name: Send notification
+      if: always()
+      run: |
+        if [ $? -eq 0 ]; then
+          echo "✅ Backup completed successfully"
+        else
+          echo "❌ Backup failed"
+        fi

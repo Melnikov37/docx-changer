@@ -1,0 +1,39 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+  workflow_dispatch:  # Позволяет запускать вручную
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy to VPS
+      env:
+        SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        SSH_HOST: ${{ secrets.VPS_HOST }}
+        SSH_USER: ${{ secrets.VPS_USER }}
+      run: |
+        chmod +x scripts/deploy/remote.sh
+        ./scripts/deploy/remote.sh
+
+    - name: Send notification on success
+      if: success()
+      run: |
+        echo "✅ Deployment successful!"
+        echo "Application deployed to: ${{ secrets.VPS_HOST }}"
+
+    - name: Send notification on failure
+      if: failure()
+      run: |
+        echo "❌ Deployment failed!"
+        exit 1
