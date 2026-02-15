@@ -1,181 +1,200 @@
 # DOCX Template Filler
 
-Веб-приложение для заполнения DOCX документов по шаблонам с использованием тегов Jinja2.
+> Web application for filling DOCX templates using Jinja2 syntax
 
-## ✨ Новое в версии 2.0
+[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0.0-green.svg)](https://flask.palletsprojects.com/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Динамические формы!** Теперь не нужно писать JSON вручную:
-1. Загрузите DOCX шаблон
-2. Приложение автоматически извлечет все теги
-3. Вы увидите готовую форму с полями для заполнения
-4. Просто заполните поля и нажмите "Сгенерировать"
+## Overview
 
-Все еще можете использовать режим JSON для сложных случаев.
+DOCX Template Filler is a Flask-based web application that automatically generates filled Word documents from templates. It supports both dynamic form-based input and manual JSON data entry.
 
-## Установка
+### Key Features
 
-1. Убедитесь, что у вас установлен Python 3.9 или выше:
+- **Dynamic Form Generation**: Upload a template and get an auto-generated web form
+- **JSON Mode**: Advanced manual data input for complex scenarios
+- **Template Management**: Save and reuse templates
+- **User Authentication**: Multi-user support with Flask-Login
+- **S3 Storage**: MinIO-based object storage for files
+- **History Tracking**: Keep track of all generated documents
+- **Docker Ready**: Production deployment with Docker Compose and Nginx
+
+## Quick Start
+
+### Local Development
+
 ```bash
-python3 --version
-```
+# Clone repository
+cd /Users/m.melnikov/projects/docx-changer
 
-2. Создайте виртуальное окружение:
-```bash
+# Create virtual environment
 python3 -m venv venv
-source venv/bin/activate  # На Windows: venv\Scripts\activate
-```
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-3. Установите зависимости:
-```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-## Запуск приложения
+# Configure environment
+cp .env.example .env
+# Edit .env with your settings
 
-```bash
+# Run application
 python app.py
 ```
 
-Приложение будет доступно по адресу: `http://localhost:5000`
+Application will be available at: `http://localhost:5000`
 
-## Как использовать
+### Docker Deployment
 
-### Способ 1: Использование динамических форм (рекомендуется)
+```bash
+# Configure environment
+cp .env.example .env
+# Edit .env with production values
 
-1. **Создайте DOCX шаблон** в Microsoft Word с тегами Jinja2
-2. **Загрузите шаблон** в веб-интерфейс (перетащите или выберите файл)
-3. **Дождитесь парсинга** - приложение автоматически найдет все теги
-4. **Заполните форму** - для каждого тега появится поле ввода:
-   - Простые поля: текстовые input'ы
-   - Boolean поля: чекбоксы
-   - Массивы: динамические формы с кнопками "Добавить" / "Удалить"
-5. **Нажмите "Сгенерировать документ"**
-6. **Скачайте готовый файл**
+# Start services
+docker-compose up -d
 
-### Способ 2: Использование JSON (для опытных пользователей)
-
-Переключитесь в режим "JSON" и введите данные вручную.
-
-### 1. Создание шаблона DOCX
-
-Откройте Microsoft Word и создайте документ с тегами Jinja2:
-
-#### Простые переменные
-```
-Имя: {{name}}
-Дата: {{date}}
-Компания: {{company}}
+# Check status
+docker-compose ps
 ```
 
-#### Списки и таблицы
-Для создания повторяющихся элементов используйте циклы:
+Application will be available at: `http://localhost` (or your domain)
+
+## How It Works
+
+### 1. Create DOCX Template
+
+Open Microsoft Word and create a document with Jinja2 tags:
 
 ```
+Contract for: {{name}}
+Date: {{date}}
+Company: {{company}}
+
 {% for item in items %}
-- {{item.name}}: {{item.price}} руб.
+- {{item.name}}: {{item.price}} USD
 {% endfor %}
-```
 
-Для таблиц в Word:
-1. Создайте таблицу с заголовками
-2. Во второй строке добавьте теги
-3. Поместите вторую строку внутрь цикла:
-
-```
-{% for product in products %}
-| {{product.name}} | {{product.price}} | {{product.quantity}} |
-{% endfor %}
-```
-
-#### Условия
-```
 {% if has_discount %}
-Скидка: {{discount}}%
+Discount: {{discount}}%
 {% endif %}
 ```
 
-#### Фильтры
-```
-{{name|upper}}           - ВЕРХНИЙ РЕГИСТР
-{{text|lower}}           - нижний регистр
-{{text|capitalize}}      - Заглавная первая буква
-{{number|round(2)}}      - округление до 2 знаков
-```
+### 2. Upload and Fill
 
-### 2. Подготовка данных JSON
+- Upload your DOCX template
+- Application automatically extracts all variables
+- Fill the generated form or provide JSON data
+- Click "Generate Document"
+- Download your filled document
 
-Создайте JSON объект с данными для заполнения:
+## Documentation
 
-```json
-{
-  "name": "Иван Иванов",
-  "date": "25.01.2026",
-  "company": "ООО Пример",
-  "has_discount": true,
-  "discount": 10,
-  "items": [
-    {"name": "Товар 1", "price": "1000"},
-    {"name": "Товар 2", "price": "2000"}
-  ],
-  "products": [
-    {"name": "Ноутбук", "price": "50000", "quantity": "2"},
-    {"name": "Мышь", "price": "500", "quantity": "5"}
-  ]
-}
-```
+### For Developers
 
-### 3. Генерация документа
+- **[CLAUDE.md](CLAUDE.md)** - Complete developer guide for Claude AI agent
+  - Project architecture
+  - Database schema
+  - API endpoints
+  - Development workflow
+  - Troubleshooting guide
 
-1. Откройте приложение в браузере
-2. Загрузите DOCX шаблон (перетащите файл или выберите через диалог)
-3. Вставьте JSON данные в текстовое поле
-4. Нажмите "Сгенерировать документ"
-5. Скачайте готовый файл
+- **[docs/QUICKSTART.md](docs/QUICKSTART.md)** - Quick start guide
+- **[docs/FEATURES.md](docs/FEATURES.md)** - Feature documentation
+- **[docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md)** - Project roadmap
+- **[docs/CHANGELOG.md](docs/CHANGELOG.md)** - Version history
 
-## Примеры
+### For Deployment
 
-В директории `docx_templates/` находится файл `example.docx` с примером шаблона.
+- **[docs/deployment/DEPLOYMENT.md](docs/deployment/DEPLOYMENT.md)** - General deployment guide
+- **[docs/deployment/DEPLOYMENT_RUSSIA.md](docs/deployment/DEPLOYMENT_RUSSIA.md)** - Russia-specific deployment
+- **[docs/deployment/QUICK_DEPLOY.md](docs/deployment/QUICK_DEPLOY.md)** - Quick deployment reference
 
-## Структура проекта
+### For Users (Russian)
+
+- **[docs/guides/БЫСТРЫЙ_СТАРТ_РФ.md](docs/guides/БЫСТРЫЙ_СТАРТ_РФ.md)** - Быстрый старт
+- **[docs/guides/ИНСТРУКЦИЯ_ДЛЯ_НОВИЧКОВ.md](docs/guides/ИНСТРУКЦИЯ_ДЛЯ_НОВИЧКОВ.md)** - Инструкция для новичков
+- **[docs/guides/НАСТРОЙКА_ДОМЕНА_И_SSL.md](docs/guides/НАСТРОЙКА_ДОМЕНА_И_SSL.md)** - Настройка домена и SSL
+- **[docs/guides/ОБНОВЛЕНИЕ_НА_VPS.md](docs/guides/ОБНОВЛЕНИЕ_НА_VPS.md)** - Обновление на VPS
+
+## Project Structure
 
 ```
 docx-changer/
-├── app.py                  # Flask приложение
-├── requirements.txt        # Зависимости
-├── README.md              # Документация
-├── templates/             # HTML шаблоны
-│   └── index.html
-├── static/
-│   ├── css/
-│   │   └── style.css
-│   └── js/
-│       └── app.js
-├── docx_templates/       # Шаблоны DOCX
-│   └── example.docx
-├── uploads/              # Временные файлы
-└── output/               # Результаты
+├── app.py                  # Main Flask application
+├── models.py               # User authentication models
+├── db.py                   # Database operations
+├── s3_client.py            # S3/MinIO storage client
+├── requirements.txt        # Python dependencies
+├── Dockerfile              # Docker image
+├── docker-compose.yml      # Multi-container setup
+│
+├── templates/              # HTML templates
+├── static/                 # CSS, JS, images
+├── docx_templates/         # Example DOCX templates
+├── examples/               # Example JSON data
+├── scripts/                # Deployment scripts
+├── docs/                   # Documentation
+│   ├── deployment/        # Deployment guides
+│   └── guides/            # User guides (Russian)
+│
+├── uploads/                # Temporary uploads (gitignored)
+├── output/                 # Generated files (gitignored)
+└── data/                   # SQLite database (gitignored)
 ```
 
-## Возможные проблемы
+## Technology Stack
 
-### Ошибка "Invalid JSON"
-Проверьте корректность JSON:
-- Все строки в двойных кавычках
-- Запятые между элементами
-- Нет запятой после последнего элемента
+- **Backend**: Python 3.9+, Flask 3.0, Flask-Login
+- **Template Engine**: docxtpl (Jinja2-based)
+- **Database**: SQLite 3
+- **Storage**: MinIO (S3-compatible)
+- **Production**: Gunicorn, Nginx, Docker Compose
 
-### Переменная не заменяется
-- Проверьте точное совпадение имен в шаблоне и JSON
-- Учитывайте регистр букв
-- Убедитесь, что синтаксис тегов правильный: `{{variable}}`, а не `{variable}`
+## Examples
 
-### Кириллица отображается некорректно
-- Убедитесь, что DOCX файл создан в UTF-8
-- Проверьте, что JSON данные в UTF-8
+Example templates and data are provided in:
+- `docx_templates/example.docx` - Sample template
+- `examples/example_data.json` - Sample JSON data
 
-## Безопасность
+## Security
 
-- Максимальный размер загружаемого файла: 10 MB
-- Поддерживаются только файлы с расширением .docx
-- Временные файлы автоматически удаляются после генерации
-- Приложение предназначено для локального использования
+- File upload validation (max 10MB, .docx only)
+- Path traversal protection
+- Zip bomb protection
+- Password hashing with werkzeug
+- User-specific data access control
+- Production credential validation
+
+## Requirements
+
+- Python 3.9+
+- Docker & Docker Compose (for production)
+- Modern web browser
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/Melnikov37/docx-changer/issues)
+- **Documentation**: See `docs/` directory
+- **Developer Guide**: See `CLAUDE.md`
+
+## License
+
+[Specify license]
+
+## Contributing
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/your-feature`
+3. Commit changes: `git commit -m 'Add some feature'`
+4. Push to branch: `git push origin feature/your-feature`
+5. Open Pull Request
+
+## Author
+
+Maintained by Melnikov37
+
+---
+
+**For AI Agents**: See [CLAUDE.md](CLAUDE.md) for comprehensive project documentation and development guidelines.
