@@ -10,6 +10,7 @@
 #   SECRET_KEY - Flask secret key
 #   MINIO_ROOT_USER - MinIO username
 #   MINIO_ROOT_PASSWORD - MinIO password
+#   POSTGRES_PASSWORD - PostgreSQL password
 
 set -e
 
@@ -70,6 +71,11 @@ if [ -n "$SSH_KEY" ]; then
         echo "Add them to GitHub Secrets"
         exit 1
     fi
+    if [ -z "$POSTGRES_PASSWORD" ]; then
+        echo "Error: POSTGRES_PASSWORD is required"
+        echo "Add POSTGRES_PASSWORD to GitHub Secrets"
+        exit 1
+    fi
 fi
 
 echo "🚀 Remote deployment to $HOST (Docker)"
@@ -125,6 +131,9 @@ MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
 S3_ENDPOINT=minio:9000
 S3_BUCKET=templates
 FLASK_ENV=production
+
+# PostgreSQL
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
 # SSL certificates
 SSL_CERT_PATH=${SSL_CERT_FILE}
