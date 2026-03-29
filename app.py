@@ -9,7 +9,7 @@ import zipfile
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash, after_this_request
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from docxtpl import DocxTemplate
@@ -191,6 +191,10 @@ def extract_template_variables(doc_path):
         if_pattern = r'\{%\s*if\s+([a-zA-Zа-яА-ЯёЁ_][a-zA-Zа-яА-ЯёЁ0-9_]*)\s*%\}'
         if_matches = [(m.group(1), m.start()) for m in re.finditer(if_pattern, full_text)]
 
+        # Поиск SNIPPET-меток {{SNIPPET:name}}
+        snippet_pattern = r'\{\{\s*SNIPPET\s*:\s*([a-zA-Zа-яА-ЯёЁ0-9_]+)\s*\}\}'
+        snippet_matches = [(m.group(1), m.start()) for m in re.finditer(snippet_pattern, full_text)]
+
         # Создаем словарь позиций (первое вхождение каждой переменной)
         var_positions = {}
         for var, pos in simple_matches + loop_matches + if_matches:
@@ -204,6 +208,10 @@ def extract_template_variables(doc_path):
 
         # Объединение всех переменных
         all_vars = set(simple_vars + loop_vars + if_vars)
+
+        # Имена SNIPPET-меток (исключаем из обычных переменных)
+        snippet_names = set(m[0] for m in snippet_matches)
+        all_vars = all_vars - snippet_names
 
         # Разделение на простые переменные и вложенные объекты
         fields = {}
@@ -256,11 +264,83 @@ def extract_template_variables(doc_path):
             else:
                 result[key] = value
 
+        # Добавляем SNIPPET-метки
+        snippets_list = []
+        for name, pos in snippet_matches:
+            if name not in [s['name'] for s in snippets_list]:
+                snippets_list.append({'name': name, 'position': pos})
+        result['__snippets__'] = snippets_list
+
         return result
 
     except Exception as e:
         app.logger.error(f"Error extracting variables: {e}")
         return {}
+
+
+def insert_snippet_into_doc(doc_path, snippet_marker, snippet_doc_path):
+    """
+    Вставляет содержимое DOCX-фрагмента на место метки в документе.
+    Метка: {{SNIPPET:name}} — заменяется всеми параграфами и таблицами из фрагмента.
+    """
+    from docx.oxml.ns import qn
+    from copy import deepcopy
+
+    doc = Document(doc_path)
+    snippet_doc = Document(snippet_doc_path)
+    marker_text = '{{SNIPPET:' + snippet_marker + '}}'
+    found = False
+
+    for i, paragraph in enumerate(doc.paragraphs):
+        if marker_text in paragraph.text:
+            found = True
+            # Получаем родительский элемент и позицию
+            parent = paragraph._element.getparent()
+            idx = list(parent).index(paragraph._element)
+
+            # Вставляем элементы из фрагмента
+            insert_idx = idx
+            for element in snippet_doc.element.body:
+                tag = element.tag.split('}')[-1] if '}' in element.tag else element.tag
+                if tag in ('p', 'tbl'):
+                    new_element = deepcopy(element)
+                    parent.insert(insert_idx + 1, new_element)
+                    insert_idx += 1
+
+            # Удаляем параграф с меткой
+            parent.remove(paragraph._element)
+            break
+
+    if not found:
+        # Проверяем таблицы (метка может быть внутри ячейки)
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        if marker_text in paragraph.text:
+                            found = True
+                            parent = paragraph._element.getparent()
+                            idx = list(parent).index(paragraph._element)
+
+                            insert_idx = idx
+                            for element in snippet_doc.element.body:
+                                tag = element.tag.split('}')[-1] if '}' in element.tag else element.tag
+                                if tag in ('p', 'tbl'):
+                                    new_element = deepcopy(element)
+                                    parent.insert(insert_idx + 1, new_element)
+                                    insert_idx += 1
+
+                            parent.remove(paragraph._element)
+                            break
+                    if found:
+                        break
+                if found:
+                    break
+            if found:
+                break
+
+    doc.save(doc_path)
+    return found
 
 
 @app.route('/')
@@ -310,9 +390,13 @@ def parse_template():
         session_path = os.path.join(app.config['UPLOAD_FOLDER'], session_filename)
         os.rename(temp_path, session_path)
 
+        # Разделяем SNIPPET-метки от обычных переменных
+        snippets_info = variables.pop('__snippets__', [])
+
         return jsonify({
             'success': True,
             'variables': variables,
+            'snippets': snippets_info,
             'template_file': session_filename,
             'filename': filename
         })
@@ -393,6 +477,40 @@ def generate():
             doc.save(output_path)
         except Exception as e:
             return jsonify({'error': f'Template processing error: {str(e)}'}), 500
+
+        # Обработка SNIPPET-меток
+        try:
+            snippet_data = json.loads(request.form.get('snippets', '{}'))
+            for marker_name, snippet_id in snippet_data.items():
+                if not snippet_id:
+                    # "Не вставлять" — удаляем метку
+                    temp_doc = Document(output_path)
+                    marker_text = '{{SNIPPET:' + marker_name + '}}'
+                    for paragraph in temp_doc.paragraphs:
+                        if marker_text in paragraph.text:
+                            paragraph._element.getparent().remove(paragraph._element)
+                            break
+                    temp_doc.save(output_path)
+                    continue
+
+                # Получаем фрагмент из БД
+                snippet = db.get_snippet(int(snippet_id), user_id=current_user.id)
+                if not snippet:
+                    continue
+
+                # Скачиваем фрагмент из S3
+                snippet_temp_path = os.path.join(
+                    app.config['UPLOAD_FOLDER'],
+                    f"snippet_{uuid.uuid4()}.docx"
+                )
+                if s3_client.download_file(snippet['s3_key'], snippet_temp_path):
+                    try:
+                        insert_snippet_into_doc(output_path, marker_name, snippet_temp_path)
+                    finally:
+                        if os.path.exists(snippet_temp_path):
+                            os.remove(snippet_temp_path)
+        except Exception as e:
+            app.logger.error(f"Error processing snippets: {e}")
 
         # Сохранение в историю (MinIO + БД)
         try:
@@ -750,6 +868,406 @@ def delete_from_history(doc_id):
 
     except Exception as e:
         app.logger.error(f"Error deleting from history: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ===== Endpoints справочников (snippets) =====
+
+@app.route('/snippets')
+@login_required
+def snippets_page():
+    """Страница управления справочниками"""
+    return render_template('snippets.html')
+
+
+@app.route('/snippets/categories', methods=['GET'])
+@login_required
+def get_snippet_categories():
+    """Получение списка категорий справочников"""
+    try:
+        categories = db.get_snippet_categories(user_id=current_user.id)
+        return jsonify({'success': True, 'categories': categories})
+    except Exception as e:
+        app.logger.error(f"Error getting snippet categories: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/snippets/categories', methods=['POST'])
+@login_required
+def create_snippet_category():
+    """Создание категории справочника"""
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        description = data.get('description', '').strip()
+
+        if not name:
+            return jsonify({'error': 'Category name is required'}), 400
+
+        cat_id = db.create_snippet_category(
+            name=name,
+            user_id=current_user.id,
+            description=description
+        )
+        return jsonify({'success': True, 'category_id': cat_id})
+    except Exception as e:
+        app.logger.error(f"Error creating snippet category: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/snippets/categories/<int:cat_id>', methods=['PUT'])
+@login_required
+def update_snippet_category_endpoint(cat_id):
+    """Обновление категории справочника"""
+    try:
+        data = request.get_json()
+        success = db.update_snippet_category(
+            cat_id=cat_id,
+            user_id=current_user.id,
+            name=data.get('name'),
+            description=data.get('description')
+        )
+        if success:
+            return jsonify({'success': True})
+        return jsonify({'error': 'Category not found'}), 404
+    except Exception as e:
+        app.logger.error(f"Error updating snippet category: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/snippets/categories/<int:cat_id>', methods=['DELETE'])
+@login_required
+def delete_snippet_category_endpoint(cat_id):
+    """Удаление категории справочника (каскадно удаляет фрагменты)"""
+    try:
+        s3_keys = db.delete_snippet_category(cat_id, user_id=current_user.id)
+        if s3_keys is None:
+            return jsonify({'error': 'Category not found'}), 404
+        # Удаляем файлы из S3
+        for key in s3_keys:
+            s3_client.delete_file(key)
+        return jsonify({'success': True})
+    except Exception as e:
+        app.logger.error(f"Error deleting snippet category: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/snippets/categories/<int:cat_id>/items', methods=['GET'])
+@login_required
+def get_snippets_in_category(cat_id):
+    """Получение фрагментов в категории"""
+    try:
+        items = db.get_snippets_by_category(cat_id, user_id=current_user.id)
+        return jsonify({'success': True, 'items': items})
+    except Exception as e:
+        app.logger.error(f"Error getting snippets: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/snippets/items', methods=['GET'])
+@login_required
+def get_all_snippets():
+    """Получение всех фрагментов пользователя (для dropdown при генерации)"""
+    try:
+        grouped = db.get_all_snippets_grouped(user_id=current_user.id)
+        return jsonify({'success': True, 'snippets': grouped})
+    except Exception as e:
+        app.logger.error(f"Error getting all snippets: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/snippets/items', methods=['POST'])
+@login_required
+def create_snippet():
+    """Создание фрагмента (загрузка DOCX файла)"""
+    try:
+        name = request.form.get('name', '').strip()
+        category_id = request.form.get('category_id', type=int)
+        description = request.form.get('description', '').strip()
+
+        if not name or not category_id:
+            return jsonify({'error': 'Name and category are required'}), 400
+
+        # Проверяем, что категория принадлежит пользователю
+        category = db.get_snippet_category(category_id, user_id=current_user.id)
+        if not category:
+            return jsonify({'error': 'Category not found'}), 404
+
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+
+        file = request.files['file']
+        if file.filename == '' or not allowed_file(file.filename):
+            return jsonify({'error': 'Only .docx files are allowed'}), 400
+
+        # Валидация DOCX
+        try:
+            validate_docx_file(file.stream)
+        except ValueError as e:
+            return jsonify({'error': f'Invalid file: {str(e)}'}), 400
+
+        # Сохранение во временную папку
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        temp_path = os.path.join(app.config['UPLOAD_FOLDER'], f"snippet_{timestamp}_{filename}")
+        file.save(temp_path)
+
+        try:
+            file_size = os.path.getsize(temp_path)
+            s3_key = f"snippets/{uuid.uuid4()}_{filename}"
+
+            if not s3_client.upload_file(temp_path, s3_key):
+                return jsonify({'error': 'Failed to upload to storage'}), 500
+
+            snippet_id = db.create_snippet(
+                category_id=category_id,
+                name=name,
+                s3_key=s3_key,
+                original_filename=filename,
+                user_id=current_user.id,
+                description=description,
+                file_size=file_size
+            )
+            return jsonify({'success': True, 'snippet_id': snippet_id})
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
+    except Exception as e:
+        app.logger.error(f"Error creating snippet: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/snippets/items/from-form', methods=['POST'])
+@login_required
+def create_snippet_from_form():
+    """Создание фрагмента из формы (генерирует DOCX таблицу)"""
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        category_id = data.get('category_id')
+        description = data.get('description', '').strip()
+        fields = data.get('fields', [])  # [{"key": "...", "value": "..."}, ...]
+
+        if not name or not category_id or not fields:
+            return jsonify({'error': 'Name, category, and fields are required'}), 400
+
+        # Проверяем, что категория принадлежит пользователю
+        category = db.get_snippet_category(category_id, user_id=current_user.id)
+        if not category:
+            return jsonify({'error': 'Category not found'}), 404
+
+        # Генерация DOCX с таблицей
+        doc = Document()
+        table = doc.add_table(rows=len(fields), cols=2)
+        table.style = 'Table Grid'
+        for i, field in enumerate(fields):
+            table.cell(i, 0).text = field.get('key', '')
+            table.cell(i, 1).text = field.get('value', '')
+
+        # Сохранение во временную папку
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"form_{timestamp}.docx"
+        temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        doc.save(temp_path)
+
+        try:
+            file_size = os.path.getsize(temp_path)
+            s3_key = f"snippets/{uuid.uuid4()}_{filename}"
+
+            if not s3_client.upload_file(temp_path, s3_key):
+                return jsonify({'error': 'Failed to upload to storage'}), 500
+
+            snippet_id = db.create_snippet(
+                category_id=category_id,
+                name=name,
+                s3_key=s3_key,
+                original_filename=filename,
+                user_id=current_user.id,
+                description=description,
+                file_size=file_size
+            )
+            return jsonify({'success': True, 'snippet_id': snippet_id})
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
+    except Exception as e:
+        app.logger.error(f"Error creating snippet from form: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/snippets/items/<int:snippet_id>/preview', methods=['GET'])
+@login_required
+def preview_snippet(snippet_id):
+    """HTML-превью содержимого фрагмента"""
+    try:
+        snippet = db.get_snippet(snippet_id, user_id=current_user.id)
+        if not snippet:
+            return jsonify({'error': 'Snippet not found'}), 404
+
+        # Скачиваем из S3
+        temp_path = os.path.join(app.config['UPLOAD_FOLDER'], f"preview_{uuid.uuid4()}.docx")
+        if not s3_client.download_file(snippet['s3_key'], temp_path):
+            return jsonify({'error': 'Failed to download from storage'}), 500
+
+        try:
+            from docx.oxml.ns import qn
+            from html import escape as html_escape
+
+            doc = Document(temp_path)
+            html_parts = []
+
+            for element in doc.element.body:
+                tag = element.tag.split('}')[-1] if '}' in element.tag else element.tag
+
+                if tag == 'p':
+                    # Параграф
+                    texts = []
+                    for run in element.findall(qn('w:r')):
+                        t = run.find(qn('w:t'))
+                        if t is not None and t.text:
+                            # Проверяем форматирование
+                            rpr = run.find(qn('w:rPr'))
+                            text = html_escape(t.text)
+                            if rpr is not None:
+                                if rpr.find(qn('w:b')) is not None:
+                                    text = f'<strong>{text}</strong>'
+                                if rpr.find(qn('w:i')) is not None:
+                                    text = f'<em>{text}</em>'
+                            texts.append(text)
+                    if texts:
+                        html_parts.append(f'<p>{"".join(texts)}</p>')
+
+                elif tag == 'tbl':
+                    # Таблица
+                    html_parts.append('<table class="table table-bordered table-sm">')
+                    for tr in element.findall(qn('w:tr')):
+                        html_parts.append('<tr>')
+                        for tc in tr.findall(qn('w:tc')):
+                            cell_texts = []
+                            for p in tc.findall(qn('w:p')):
+                                for run in p.findall(qn('w:r')):
+                                    t = run.find(qn('w:t'))
+                                    if t is not None and t.text:
+                                        cell_texts.append(html_escape(t.text))
+                            html_parts.append(f'<td>{" ".join(cell_texts)}</td>')
+                        html_parts.append('</tr>')
+                    html_parts.append('</table>')
+
+            return jsonify({
+                'success': True,
+                'html': '\n'.join(html_parts),
+                'name': snippet['name']
+            })
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
+    except Exception as e:
+        app.logger.error(f"Error previewing snippet: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/snippets/items/<int:snippet_id>/download', methods=['GET'])
+@login_required
+def download_snippet(snippet_id):
+    """Скачивание оригинального DOCX фрагмента"""
+    try:
+        snippet = db.get_snippet(snippet_id, user_id=current_user.id)
+        if not snippet:
+            return jsonify({'error': 'Snippet not found'}), 404
+
+        temp_path = os.path.join(app.config['OUTPUT_FOLDER'], f"dl_{uuid.uuid4()}.docx")
+        if not s3_client.download_file(snippet['s3_key'], temp_path):
+            return jsonify({'error': 'Failed to download from storage'}), 500
+
+        @after_this_request
+        def remove_file(response):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+            return response
+
+        return send_file(
+            temp_path,
+            as_attachment=True,
+            download_name=snippet['original_filename'],
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+    except Exception as e:
+        app.logger.error(f"Error downloading snippet: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/snippets/items/<int:snippet_id>', methods=['PUT'])
+@login_required
+def update_snippet_endpoint(snippet_id):
+    """Обновление фрагмента (метаданные или замена файла)"""
+    try:
+        name = request.form.get('name')
+        description = request.form.get('description')
+
+        new_s3_key = None
+        new_filename = None
+        new_file_size = None
+
+        # Если есть новый файл
+        if 'file' in request.files:
+            file = request.files['file']
+            if file.filename and allowed_file(file.filename):
+                try:
+                    validate_docx_file(file.stream)
+                except ValueError as e:
+                    return jsonify({'error': f'Invalid file: {str(e)}'}), 400
+
+                new_filename = secure_filename(file.filename)
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                temp_path = os.path.join(app.config['UPLOAD_FOLDER'], f"snippet_{timestamp}_{new_filename}")
+                file.save(temp_path)
+
+                try:
+                    new_file_size = os.path.getsize(temp_path)
+                    new_s3_key = f"snippets/{uuid.uuid4()}_{new_filename}"
+                    if not s3_client.upload_file(temp_path, new_s3_key):
+                        return jsonify({'error': 'Failed to upload to storage'}), 500
+                finally:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+
+        old_s3_key = db.update_snippet(
+            snippet_id=snippet_id,
+            user_id=current_user.id,
+            name=name,
+            description=description,
+            s3_key=new_s3_key,
+            original_filename=new_filename,
+            file_size=new_file_size
+        )
+
+        # Удаляем старый файл из S3 если был заменён
+        if old_s3_key and new_s3_key:
+            s3_client.delete_file(old_s3_key)
+
+        return jsonify({'success': True})
+    except Exception as e:
+        app.logger.error(f"Error updating snippet: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/snippets/items/<int:snippet_id>', methods=['DELETE'])
+@login_required
+def delete_snippet_endpoint(snippet_id):
+    """Удаление фрагмента"""
+    try:
+        s3_key = db.delete_snippet(snippet_id, user_id=current_user.id)
+        if not s3_key:
+            return jsonify({'error': 'Snippet not found'}), 404
+        s3_client.delete_file(s3_key)
+        return jsonify({'success': True})
+    except Exception as e:
+        app.logger.error(f"Error deleting snippet: {e}")
         return jsonify({'error': str(e)}), 500
 
 

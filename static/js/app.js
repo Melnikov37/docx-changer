@@ -233,10 +233,17 @@ async function parseTemplate(file) {
 
         if (response.ok && result.success) {
             templateVariables = result.variables;
+            // Сохраняем SNIPPET-метки
+            window.templateSnippets = result.snippets || [];
             templateFile = result.template_file;
 
             // Генерация динамической формы
             buildDynamicForm(templateVariables);
+
+            // Если есть SNIPPET-метки, добавляем dropdown'ы
+            if (window.templateSnippets && window.templateSnippets.length > 0) {
+                buildSnippetSelectors(window.templateSnippets);
+            }
 
             // Показываем уведомление
             showAlert('success', `✓ Шаблон загружен. Найдено полей: ${Object.keys(templateVariables).length}`);
@@ -511,6 +518,14 @@ async function generateDocument() {
     }
 
     formData.append('data', jsonData);
+
+    // Добавляем выбранные SNIPPET-фрагменты
+    const snippetSelections = {};
+    document.querySelectorAll('.snippet-selector').forEach(select => {
+        const snippetName = select.getAttribute('data-snippet-name');
+        snippetSelections[snippetName] = select.value;
+    });
+    formData.append('snippets', JSON.stringify(snippetSelections));
 
     try {
         const response = await fetchWithAuth('/generate', {
@@ -1060,3 +1075,51 @@ document.getElementById('confirmDeleteBtn')?.addEventListener('click', function(
         confirmCallback = null;
     }
 });
+
+// ===== Функции для SNIPPET-меток =====
+
+async function buildSnippetSelectors(snippets) {
+    // Загружаем список фрагментов пользователя
+    try {
+        const response = await fetchWithAuth('/snippets/items');
+        const data = await response.json();
+
+        if (!data.success) return;
+
+        const dynamicForm = document.getElementById('dynamicForm');
+        const grouped = data.snippets; // {category_name: [{id, name, description}, ...]}
+
+        for (const snippet of snippets) {
+            const fieldGroup = document.createElement('div');
+            fieldGroup.className = 'mb-4 p-3 border border-warning rounded bg-light';
+            fieldGroup.id = `snippet_field_${snippet.name}`;
+
+            let optionsHtml = '<option value="">— Не вставлять —</option>';
+            for (const [catName, items] of Object.entries(grouped)) {
+                optionsHtml += `<optgroup label="${escapeHtml(catName)}">`;
+                for (const item of items) {
+                    optionsHtml += `<option value="${item.id}">${escapeHtml(item.name)}</option>`;
+                }
+                optionsHtml += '</optgroup>';
+            }
+
+            const displayName = formatFieldName(snippet.name);
+            fieldGroup.innerHTML = `
+                <label class="form-label fw-bold">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-puzzle me-1" viewBox="0 0 16 16">
+                        <path d="M5.5 0a.5.5 0 0 1 .5.5V2h4V.5a.5.5 0 0 1 1 0V2h1a2 2 0 0 1 2 2v1h1.5a.5.5 0 0 1 0 1H14v4h1.5a.5.5 0 0 1 0 1H14v1a2 2 0 0 1-2 2h-1v1.5a.5.5 0 0 1-1 0V14H6v1.5a.5.5 0 0 1-1 0V14H4a2 2 0 0 1-2-2v-1H.5a.5.5 0 0 1 0-1H2V6H.5a.5.5 0 0 1 0-1H2V4a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5z"/>
+                    </svg>
+                    Фрагмент: ${displayName}
+                </label>
+                <select class="form-select snippet-selector" name="snippet_${snippet.name}" data-snippet-name="${snippet.name}">
+                    ${optionsHtml}
+                </select>
+                <small class="text-muted">Выберите фрагмент из справочника для вставки в метку {{SNIPPET:${snippet.name}}}</small>
+            `;
+
+            dynamicForm.appendChild(fieldGroup);
+        }
+    } catch (error) {
+        console.error('Error loading snippets for selectors:', error);
+    }
+}
