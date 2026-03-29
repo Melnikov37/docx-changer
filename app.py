@@ -278,6 +278,71 @@ def extract_template_variables(doc_path):
         return {}
 
 
+def insert_snippet_into_doc(doc_path, snippet_marker, snippet_doc_path):
+    """
+    Вставляет содержимое DOCX-фрагмента на место метки в документе.
+    Метка: {{SNIPPET:name}} — заменяется всеми параграфами и таблицами из фрагмента.
+    """
+    from docx.oxml.ns import qn
+    from copy import deepcopy
+
+    doc = Document(doc_path)
+    snippet_doc = Document(snippet_doc_path)
+    marker_text = '{{SNIPPET:' + snippet_marker + '}}'
+    found = False
+
+    for i, paragraph in enumerate(doc.paragraphs):
+        if marker_text in paragraph.text:
+            found = True
+            # Получаем родительский элемент и позицию
+            parent = paragraph._element.getparent()
+            idx = list(parent).index(paragraph._element)
+
+            # Вставляем элементы из фрагмента
+            insert_idx = idx
+            for element in snippet_doc.element.body:
+                tag = element.tag.split('}')[-1] if '}' in element.tag else element.tag
+                if tag in ('p', 'tbl'):
+                    new_element = deepcopy(element)
+                    parent.insert(insert_idx + 1, new_element)
+                    insert_idx += 1
+
+            # Удаляем параграф с меткой
+            parent.remove(paragraph._element)
+            break
+
+    if not found:
+        # Проверяем таблицы (метка может быть внутри ячейки)
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        if marker_text in paragraph.text:
+                            found = True
+                            parent = paragraph._element.getparent()
+                            idx = list(parent).index(paragraph._element)
+
+                            insert_idx = idx
+                            for element in snippet_doc.element.body:
+                                tag = element.tag.split('}')[-1] if '}' in element.tag else element.tag
+                                if tag in ('p', 'tbl'):
+                                    new_element = deepcopy(element)
+                                    parent.insert(insert_idx + 1, new_element)
+                                    insert_idx += 1
+
+                            parent.remove(paragraph._element)
+                            break
+                    if found:
+                        break
+                if found:
+                    break
+            if found:
+                break
+
+    doc.save(doc_path)
+    return found
+
+
 @app.route('/')
 @login_required
 def index():
@@ -412,6 +477,40 @@ def generate():
             doc.save(output_path)
         except Exception as e:
             return jsonify({'error': f'Template processing error: {str(e)}'}), 500
+
+        # Обработка SNIPPET-меток
+        try:
+            snippet_data = json.loads(request.form.get('snippets', '{}'))
+            for marker_name, snippet_id in snippet_data.items():
+                if not snippet_id:
+                    # "Не вставлять" — удаляем метку
+                    temp_doc = Document(output_path)
+                    marker_text = '{{SNIPPET:' + marker_name + '}}'
+                    for paragraph in temp_doc.paragraphs:
+                        if marker_text in paragraph.text:
+                            paragraph._element.getparent().remove(paragraph._element)
+                            break
+                    temp_doc.save(output_path)
+                    continue
+
+                # Получаем фрагмент из БД
+                snippet = db.get_snippet(int(snippet_id), user_id=current_user.id)
+                if not snippet:
+                    continue
+
+                # Скачиваем фрагмент из S3
+                snippet_temp_path = os.path.join(
+                    app.config['UPLOAD_FOLDER'],
+                    f"snippet_{uuid.uuid4()}.docx"
+                )
+                if s3_client.download_file(snippet['s3_key'], snippet_temp_path):
+                    try:
+                        insert_snippet_into_doc(output_path, marker_name, snippet_temp_path)
+                    finally:
+                        if os.path.exists(snippet_temp_path):
+                            os.remove(snippet_temp_path)
+        except Exception as e:
+            app.logger.error(f"Error processing snippets: {e}")
 
         # Сохранение в историю (MinIO + БД)
         try:
