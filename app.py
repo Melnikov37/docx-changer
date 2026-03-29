@@ -191,6 +191,10 @@ def extract_template_variables(doc_path):
         if_pattern = r'\{%\s*if\s+([a-zA-Zа-яА-ЯёЁ_][a-zA-Zа-яА-ЯёЁ0-9_]*)\s*%\}'
         if_matches = [(m.group(1), m.start()) for m in re.finditer(if_pattern, full_text)]
 
+        # Поиск SNIPPET-меток {{SNIPPET:name}}
+        snippet_pattern = r'\{\{\s*SNIPPET\s*:\s*([a-zA-Zа-яА-ЯёЁ0-9_]+)\s*\}\}'
+        snippet_matches = [(m.group(1), m.start()) for m in re.finditer(snippet_pattern, full_text)]
+
         # Создаем словарь позиций (первое вхождение каждой переменной)
         var_positions = {}
         for var, pos in simple_matches + loop_matches + if_matches:
@@ -204,6 +208,10 @@ def extract_template_variables(doc_path):
 
         # Объединение всех переменных
         all_vars = set(simple_vars + loop_vars + if_vars)
+
+        # Имена SNIPPET-меток (исключаем из обычных переменных)
+        snippet_names = set(m[0] for m in snippet_matches)
+        all_vars = all_vars - snippet_names
 
         # Разделение на простые переменные и вложенные объекты
         fields = {}
@@ -255,6 +263,13 @@ def extract_template_variables(doc_path):
                 result[key] = value
             else:
                 result[key] = value
+
+        # Добавляем SNIPPET-метки
+        snippets_list = []
+        for name, pos in snippet_matches:
+            if name not in [s['name'] for s in snippets_list]:
+                snippets_list.append({'name': name, 'position': pos})
+        result['__snippets__'] = snippets_list
 
         return result
 
@@ -310,9 +325,13 @@ def parse_template():
         session_path = os.path.join(app.config['UPLOAD_FOLDER'], session_filename)
         os.rename(temp_path, session_path)
 
+        # Разделяем SNIPPET-метки от обычных переменных
+        snippets_info = variables.pop('__snippets__', [])
+
         return jsonify({
             'success': True,
             'variables': variables,
+            'snippets': snippets_info,
             'template_file': session_filename,
             'filename': filename
         })
