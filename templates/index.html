@@ -1,145 +1,59 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DOCX Template Filler</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+{% extends "base.html" %}
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
-    <link rel="alternate icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
-</head>
-<body>
-    <div class="container py-5">
-        <header class="mb-5">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="display-4 mb-2">DOCX Template Filler</h1>
-                    <p class="lead text-muted">Заполнение документов по шаблонам с использованием тегов Jinja2</p>
-                </div>
-                <div class="d-flex align-items-center gap-2">
-                    <div class="btn-group">
-                        <a href="{{ url_for('snippets_page') }}" class="btn btn-lg btn-warning">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-puzzle me-2" viewBox="0 0 16 16">
-                                <path d="M5.5 0a.5.5 0 0 1 .5.5V2h4V.5a.5.5 0 0 1 1 0V2h1a2 2 0 0 1 2 2v1h1.5a.5.5 0 0 1 0 1H14v4h1.5a.5.5 0 0 1 0 1H14v1a2 2 0 0 1-2 2h-1v1.5a.5.5 0 0 1-1 0V14H6v1.5a.5.5 0 0 1-1 0V14H4a2 2 0 0 1-2-2v-1H.5a.5.5 0 0 1 0-1H2V6H.5a.5.5 0 0 1 0-1H2V4a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5z"/>
-                            </svg>
-                            Справочники
-                        </a>
-                        <button type="button" class="btn btn-lg btn-success" data-bs-toggle="modal" data-bs-target="#libraryModal">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-book me-2" viewBox="0 0 16 16">
-                                <path d="M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811V2.828zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492V2.687zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783z"/>
-                            </svg>
-                            Библиотека шаблонов
-                        </button>
-                        <button type="button" class="btn btn-lg btn-primary" data-bs-toggle="modal" data-bs-target="#historyModal">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-clock-history me-2" viewBox="0 0 16 16">
-                                <path d="M8.515 1.019A7 7 0 0 0 8 1V0a8 8 0 0 1 .589.022l-.074.997zm2.004.45a7.003 7.003 0 0 0-.985-.299l.219-.976c.383.086.76.2 1.126.342l-.36.933zm1.37.71a7.01 7.01 0 0 0-.439-.27l.493-.87a8.025 8.025 0 0 1 .979.654l-.615.789a6.996 6.996 0 0 0-.418-.302zm1.834 1.79a6.99 6.99 0 0 0-.653-.796l.724-.69c.27.285.52.59.747.91l-.818.576zm.744 1.352a7.08 7.08 0 0 0-.214-.468l.893-.45a7.976 7.976 0 0 1 .45 1.088l-.95.313a7.023 7.023 0 0 0-.179-.483zm.53 2.507a6.991 6.991 0 0 0-.1-1.025l.985-.17c.067.386.106.778.116 1.17l-1 .025zm-.131 1.538c.033-.17.06-.339.081-.51l.993.123a7.957 7.957 0 0 1-.23 1.155l-.964-.267c.046-.165.086-.332.12-.501zm-.952 2.379c.184-.29.346-.594.486-.908l.914.405c-.16.36-.345.706-.555 1.038l-.845-.535zm-.964 1.205c.122-.122.239-.248.35-.378l.758.653a8.073 8.073 0 0 1-.401.432l-.707-.707z"/>
-                                <path d="M8 1a7 7 0 1 0 4.95 11.95l.707.707A8.001 8.001 0 1 1 8 0v1z"/>
-                                <path d="M7.5 3a.5.5 0 0 1 .5.5v5.21l3.248 1.856a.5.5 0 0 1-.496.868l-3.5-2A.5.5 0 0 1 7 9V3.5a.5.5 0 0 1 .5-.5z"/>
-                            </svg>
-                            История
-                        </button>
-                        <button type="button" class="btn btn-lg btn-info" data-bs-toggle="modal" data-bs-target="#instructionModal">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-question-circle me-2" viewBox="0 0 16 16">
-                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                                <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 0 0 .25.246h.811a.25.25 0 0 0 .25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286zm1.557 5.763c0 .533.425.927 1.01.927.609 0 1.028-.394 1.028-.927 0-.552-.42-.94-1.029-.94-.584 0-1.009.388-1.009.94z"/>
-                            </svg>
-                            Как пользоваться?
-                        </button>
-                    </div>
-                    <!-- User dropdown -->
-                    <div class="dropdown">
-                        <button class="btn btn-lg btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-person-circle me-1" viewBox="0 0 16 16">
-                                <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
-                                <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z"/>
-                            </svg>
-                            {{ current_user.username }}
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><span class="dropdown-item-text text-muted">{{ current_user.email }}</span></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <a class="dropdown-item text-danger" href="{{ url_for('logout') }}">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-box-arrow-right me-2" viewBox="0 0 16 16">
-                                        <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
-                                        <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
-                                    </svg>
-                                    Выйти
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
+{% block title %}Генерация — DocFiller{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <!-- Шаг 1: Загрузка шаблона -->
+    <div class="mb-4">
+        <div class="step-header">
+            <div class="step-badge">1</div>
+            <h2 class="step-title">Загрузите шаблон</h2>
+        </div>
+        <div id="dropZone" class="drop-zone">
+            <div class="drop-zone-content">
+                <div class="drop-zone-icon">&#9729;</div>
+                <p class="drop-zone-text">Перетащите .docx файл сюда</p>
+                <button type="button" class="btn-select-file" id="selectFileBtn">Выбрать файл</button>
+                <input type="file" id="fileInput" accept=".docx" hidden>
             </div>
-        </header>
+            <div id="fileInfo" class="file-info" style="display: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16" style="color: #166534; flex-shrink: 0;">
+                    <path d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5z"/>
+                    <path d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0zm0 1v2A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+                </svg>
+                <span id="fileName" class="file-name"></span>
+                <button type="button" class="btn btn-sm btn-outline-success" id="saveTemplateBtn" onclick="showSaveTemplateDialog()">Сохранить в библиотеку</button>
+                <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearFile()">Удалить</button>
+            </div>
+        </div>
+    </div>
 
-        <div class="row">
-            <!-- Левая колонка: форма -->
-            <div class="col-lg-8">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">1. Загрузите DOCX шаблон</h5>
+    <!-- Шаг 2: Заполнение данных -->
+    <div class="mb-4" id="dataCard">
+        <div class="step-header">
+            <div class="step-badge">2</div>
+            <h2 class="step-title">Заполните данные</h2>
+            <div class="pill-toggle ms-auto">
+                <input type="radio" class="btn-check" name="inputMode" id="modeForm" value="form" autocomplete="off" checked>
+                <label class="btn" for="modeForm">Форма</label>
+                <input type="radio" class="btn-check" name="inputMode" id="modeJson" value="json" autocomplete="off">
+                <label class="btn" for="modeJson">JSON</label>
+            </div>
+        </div>
+        <div class="app-card">
+            <div class="app-card-body">
+                <!-- Режим формы -->
+                <div id="formMode" style="display: none;">
+                    <div id="templateNotLoaded" class="alert alert-info">
+                        Загрузите шаблон, чтобы увидеть поля для заполнения
                     </div>
-                    <div class="card-body">
-                        <div id="dropZone" class="drop-zone">
-                            <div class="drop-zone-content">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-cloud-upload mb-3" viewBox="0 0 16 16">
-                                    <path fill-rule="evenodd" d="M4.406 1.342A5.53 5.53 0 0 1 8 0c2.69 0 4.923 2 5.166 4.579C14.758 4.804 16 6.137 16 7.773 16 9.569 14.502 11 12.687 11H10a.5.5 0 0 1 0-1h2.688C13.979 10 15 8.988 15 7.773c0-1.216-1.02-2.228-2.313-2.228h-.5v-.5C12.188 2.825 10.328 1 8 1a4.53 4.53 0 0 0-2.941 1.1c-.757.652-1.153 1.438-1.153 2.055v.448l-.445.049C2.064 4.805 1 5.952 1 7.318 1 8.785 2.23 10 3.781 10H6a.5.5 0 0 1 0 1H3.781C1.708 11 0 9.366 0 7.318c0-1.763 1.266-3.223 2.942-3.593.143-.863.698-1.723 1.464-2.383z"/>
-                                    <path fill-rule="evenodd" d="M7.646 4.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 5.707V14.5a.5.5 0 0 1-1 0V5.707L5.354 7.854a.5.5 0 1 1-.708-.708l3-3z"/>
-                                </svg>
-                                <p class="mb-2">Перетащите файл .docx сюда или</p>
-                                <button type="button" class="btn btn-outline-primary" id="selectFileBtn">Выберите файл</button>
-                                <input type="file" id="fileInput" accept=".docx" hidden>
-                            </div>
-                            <div id="fileInfo" class="file-info" style="display: none;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-file-earmark-text" viewBox="0 0 16 16">
-                                    <path d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5z"/>
-                                    <path d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0zm0 1v2A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
-                                </svg>
-                                <span id="fileName"></span>
-                                <button type="button" class="btn btn-sm btn-outline-success ms-2" id="saveTemplateBtn" onclick="showSaveTemplateDialog()">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-bookmark-plus" viewBox="0 0 16 16">
-                                        <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5V2zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.482a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1H4z"/>
-                                        <path d="M8 4a.5.5 0 0 1 .5.5V6H10a.5.5 0 0 1 0 1H8.5v1.5a.5.5 0 0 1-1 0V7H6a.5.5 0 0 1 0-1h1.5V4.5A.5.5 0 0 1 8 4z"/>
-                                    </svg>
-                                    Сохранить в библиотеку
-                                </button>
-                                <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearFile()">Удалить</button>
-                            </div>
-                        </div>
-                    </div>
+                    <div id="dynamicForm"></div>
                 </div>
 
-                <div class="card shadow-sm mb-4" id="dataCard">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">2. Заполните данные</h5>
-                        <div class="btn-group btn-group-sm" role="group">
-                            <input type="radio" class="btn-check" name="inputMode" id="modeForm" value="form" autocomplete="off" checked>
-                            <label class="btn btn-outline-light" for="modeForm">Форма</label>
-
-                            <input type="radio" class="btn-check" name="inputMode" id="modeJson" value="json" autocomplete="off">
-                            <label class="btn btn-outline-light" for="modeJson">JSON</label>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <!-- Режим формы -->
-                        <div id="formMode" style="display: none;">
-                            <div id="templateNotLoaded" class="alert alert-info">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-info-circle me-2" viewBox="0 0 16 16">
-                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
-                                </svg>
-                                Загрузите шаблон, чтобы увидеть поля для заполнения
-                            </div>
-                            <div id="dynamicForm"></div>
-                        </div>
-
-                        <!-- Режим JSON -->
-                        <div id="jsonMode">
-                            <textarea id="jsonData" class="form-control font-monospace" rows="15" placeholder='Введите JSON данные, например:
+                <!-- Режим JSON -->
+                <div id="jsonMode">
+                    <textarea id="jsonData" class="form-control font-monospace" rows="12" placeholder='Введите JSON данные, например:
 {
   "name": "Иван Иванов",
   "date": "25.01.2026",
@@ -149,481 +63,169 @@
     {"name": "Товар 2", "price": "2000"}
   ]
 }'></textarea>
-                            <div id="jsonError" class="alert alert-danger mt-2" style="display: none;"></div>
-                            <div id="jsonValid" class="alert alert-success mt-2" style="display: none;">
-                                ✓ JSON валиден
+                    <div id="jsonError" class="alert alert-danger mt-2" style="display: none;"></div>
+                    <div id="jsonValid" class="alert alert-success mt-2" style="display: none;">
+                        JSON валиден
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Кнопка генерации -->
+    <button id="generateBtn" class="btn-generate" onclick="generateDocument()">
+        <span id="btnText">Сгенерировать документ</span>
+        <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+    </button>
+
+    <div id="resultAlert" class="mt-3" style="display: none;"></div>
+</div>
+
+<!-- Модальное окно сохранения шаблона -->
+<div class="modal fade" id="saveTemplateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Сохранить шаблон в библиотеку</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="saveTemplateForm">
+                    <div class="form-field">
+                        <label for="templateName">Название шаблона <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="templateName" placeholder="Например: Договор аренды" required>
+                    </div>
+                    <div class="form-field">
+                        <label for="templateDescription">Описание (необязательно)</label>
+                        <textarea class="form-control" id="templateDescription" rows="3" placeholder="Краткое описание шаблона..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-success" id="confirmSaveTemplate">Сохранить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно подтверждения удаления -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteConfirmMessage">Вы уверены, что хотите удалить этот элемент?</p>
+                <p class="text-muted small mb-0">Это действие нельзя отменить.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Удалить</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block help_modal %}
+<!-- Модальное окно с инструкцией (сохраняется как есть, только стили обновлены через CSS) -->
+<div class="modal fade" id="instructionModal" tabindex="-1" aria-labelledby="instructionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="instructionModalLabel">Как пользоваться</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-success">
+                    <strong>Добро пожаловать!</strong> Эта инструкция поможет вам создать документ с автоматическим заполнением данных.
+                </div>
+
+                <div class="instruction-step mb-4">
+                    <h3 class="text-primary">
+                        <span class="badge bg-primary me-2">Шаг 1</span>
+                        Подготовка документа в Microsoft Word
+                    </h3>
+                    <hr>
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <h5>Что делать:</h5>
+                            <ol>
+                                <li class="mb-2">Откройте <strong>Microsoft Word</strong></li>
+                                <li class="mb-2">Создайте обычный документ (договор, заявление и т.д.)</li>
+                                <li class="mb-2">Вместо данных, которые будут меняться, напишите <strong>метки</strong></li>
+                            </ol>
+                            {% raw %}<div class="alert alert-warning">
+                                <strong>Важно!</strong> Метки должны быть в двойных фигурных скобках: <code>{{название}}</code>
+                            </div>{% endraw %}
+                        </div>
+                        <div class="col-lg-6">
+                            <h5>Пример:</h5>
+                            <div class="bg-light p-3 rounded border">
+                                <p><strong>Неправильно:</strong></p>
+                                <p class="text-muted">Договор с Ивановым Иваном</p>
+                                <hr>
+                                <p><strong>Правильно:</strong></p>
+                                {% raw %}<p>Договор с <code class="text-danger">{{Фамилия_Имя}}</code></p>
+                                <p>Дата: <code class="text-danger">{{дата}}</code></p>
+                                <p>Сумма: <code class="text-danger">{{сумма}}</code> руб.</p>{% endraw %}
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="d-grid">
-                    <button id="generateBtn" class="btn btn-primary btn-lg" onclick="generateDocument()">
-                        <span id="btnText">Сгенерировать документ</span>
-                        <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
-                    </button>
+                <div class="instruction-step mb-4">
+                    <h3 class="text-primary">
+                        <span class="badge bg-primary me-2">Шаг 2</span>
+                        Загрузите шаблон и заполните данные
+                    </h3>
+                    <hr>
+                    <ol>
+                        <li class="mb-2">Перетащите файл .docx на страницу или нажмите "Выбрать файл"</li>
+                        <li class="mb-2">Заполните появившиеся поля своими данными</li>
+                        <li class="mb-2">Нажмите "Сгенерировать документ"</li>
+                        <li class="mb-2">Скачайте готовый файл</li>
+                    </ol>
                 </div>
 
-                <div id="resultAlert" class="mt-3" style="display: none;"></div>
-            </div>
-
-            <!-- Правая колонка: справка -->
-            <div class="col-lg-4">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-info text-white">
-                        <h6 class="mb-0">Синтаксис тегов в DOCX</h6>
-                    </div>
-                    <div class="card-body small">
-                        <h6>Простые переменные:</h6>
-                        {% raw %}<pre class="bg-light p-2 rounded"><code>{{variable}}</code></pre>{% endraw %}
-
-                        <h6 class="mt-3">Списки:</h6>
-                        {% raw %}<pre class="bg-light p-2 rounded"><code>{% for item in items %}
+                <div class="instruction-step mb-4">
+                    <h3 class="text-primary">
+                        <span class="badge bg-primary me-2">Синтаксис</span>
+                        Теги в DOCX шаблоне
+                    </h3>
+                    <hr>
+                    {% raw %}<div class="row">
+                        <div class="col-md-6">
+                            <h6>Простые переменные:</h6>
+                            <pre class="bg-light p-2 rounded"><code>{{variable}}</code></pre>
+                            <h6 class="mt-3">Списки:</h6>
+                            <pre class="bg-light p-2 rounded"><code>{% for item in items %}
 - {{item.name}}
-{% endfor %}</code></pre>{% endraw %}
-
-                        <h6 class="mt-3">Таблицы:</h6>
-                        {% raw %}<pre class="bg-light p-2 rounded"><code>{% for row in data %}
-{{row.col1}} | {{row.col2}}
-{% endfor %}</code></pre>{% endraw %}
-
-                        <h6 class="mt-3">Условия:</h6>
-                        {% raw %}<pre class="bg-light p-2 rounded"><code>{% if condition %}
+{% endfor %}</code></pre>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Условия:</h6>
+                            <pre class="bg-light p-2 rounded"><code>{% if condition %}
 Текст
-{% endif %}</code></pre>{% endraw %}
-
-                        <h6 class="mt-3">Фильтры:</h6>
-                        {% raw %}<pre class="bg-light p-2 rounded"><code>{{text|upper}}
-{{text|lower}}
-{{number|round(2)}}</code></pre>{% endraw %}
-
-                        <h6 class="mt-3">Вставка фрагментов:</h6>
-                        {% raw %}<pre class="bg-light p-2 rounded"><code>{{SNIPPET:туроператор}}
-{{SNIPPET:страховая}}</code></pre>{% endraw %}
-                        <small class="text-muted">Выберите фрагмент из справочника при генерации</small>
-                    </div>
+{% endif %}</code></pre>
+                            <h6 class="mt-3">Фрагменты:</h6>
+                            <pre class="bg-light p-2 rounded"><code>{{SNIPPET:туроператор}}
+{{SNIPPET:страховая}}</code></pre>
+                        </div>
+                    </div>{% endraw %}
                 </div>
-
-                <div class="card shadow-sm">
-                    <div class="card-header bg-success text-white">
-                        <h6 class="mb-0">Пример JSON</h6>
-                    </div>
-                    <div class="card-body">
-                        <pre class="bg-light p-2 rounded small mb-2"><code id="exampleJson">{
-  "name": "Иван Иванов",
-  "date": "25.01.2026",
-  "company": "ООО Пример",
-  "amount": 50000,
-  "items": [
-    {
-      "name": "Услуга 1",
-      "price": "25000",
-      "qty": "1"
-    },
-    {
-      "name": "Услуга 2",
-      "price": "25000",
-      "qty": "1"
-    }
-  ]
-}</code></pre>
-                        <button class="btn btn-sm btn-success w-100" onclick="copyExample()">Копировать</button>
-                    </div>
-                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
             </div>
         </div>
     </div>
+</div>
+{% endblock %}
 
-    <!-- Модальное окно библиотеки шаблонов -->
-    <div class="modal fade" id="libraryModal" tabindex="-1" aria-labelledby="libraryModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title" id="libraryModalLabel">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-book me-2" viewBox="0 0 16 16">
-                            <path d="M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811V2.828zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492V2.687zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783z"/>
-                        </svg>
-                        Библиотека шаблонов
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="templatesListContainer">
-                        <div class="text-center">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Загрузка...</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно истории сгенерированных файлов -->
-    <div class="modal fade" id="historyModal" tabindex="-1" aria-labelledby="historyModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="historyModalLabel">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-clock-history me-2" viewBox="0 0 16 16">
-                            <path d="M8.515 1.019A7 7 0 0 0 8 1V0a8 8 0 0 1 .589.022l-.074.997zm2.004.45a7.003 7.003 0 0 0-.985-.299l.219-.976c.383.086.76.2 1.126.342l-.36.933zm1.37.71a7.01 7.01 0 0 0-.439-.27l.493-.87a8.025 8.025 0 0 1 .979.654l-.615.789a6.996 6.996 0 0 0-.418-.302zm1.834 1.79a6.99 6.99 0 0 0-.653-.796l.724-.69c.27.285.52.59.747.91l-.818.576zm.744 1.352a7.08 7.08 0 0 0-.214-.468l.893-.45a7.976 7.976 0 0 1 .45 1.088l-.95.313a7.023 7.023 0 0 0-.179-.483zm.53 2.507a6.991 6.991 0 0 0-.1-1.025l.985-.17c.067.386.106.778.116 1.17l-1 .025zm-.131 1.538c.033-.17.06-.339.081-.51l.993.123a7.957 7.957 0 0 1-.23 1.155l-.964-.267c.046-.165.086-.332.12-.501zm-.952 2.379c.184-.29.346-.594.486-.908l.914.405c-.16.36-.345.706-.555 1.038l-.845-.535zm-.964 1.205c.122-.122.239-.248.35-.378l.758.653a8.073 8.073 0 0 1-.401.432l-.707-.707z"/>
-                            <path d="M8 1a7 7 0 1 0 4.95 11.95l.707.707A8.001 8.001 0 1 1 8 0v1z"/>
-                            <path d="M7.5 3a.5.5 0 0 1 .5.5v5.21l3.248 1.856a.5.5 0 0 1-.496.868l-3.5-2A.5.5 0 0 1 7 9V3.5a.5.5 0 0 1 .5-.5z"/>
-                        </svg>
-                        История сгенерированных документов
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="historyListContainer">
-                        <div class="text-center">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Загрузка...</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно с инструкцией -->
-    <div class="modal fade" id="instructionModal" tabindex="-1" aria-labelledby="instructionModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header bg-info text-white">
-                    <h5 class="modal-title" id="instructionModalLabel">
-                        📖 Простая инструкция: Как создать и заполнить документ
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-success">
-                        <strong>👋 Добро пожаловать!</strong> Эта инструкция поможет вам создать документ с автоматическим заполнением данных.
-                        Даже если вы мало работаете с компьютером - у вас всё получится!
-                    </div>
-
-                    <!-- Шаг 1 -->
-                    <div class="instruction-step mb-5">
-                        <h3 class="text-primary">
-                            <span class="badge bg-primary me-2">Шаг 1</span>
-                            Подготовка документа в Microsoft Word
-                        </h3>
-                        <hr>
-
-                        <div class="row">
-                            <div class="col-lg-6">
-                                <h5>Что делать:</h5>
-                                <ol class="fs-5">
-                                    <li class="mb-3">Откройте <strong>Microsoft Word</strong></li>
-                                    <li class="mb-3">Создайте обычный документ (договор, заявление и т.д.)</li>
-                                    <li class="mb-3">Вместо данных, которые будут меняться, напишите <strong>метки</strong></li>
-                                </ol>
-
-                                <div class="alert alert-warning">
-                                    <strong>⚠️ Важно!</strong> Метки должны быть в двойных фигурных скобках: <code>{{название}}</code>
-                                </div>
-                            </div>
-                            <div class="col-lg-6">
-                                <h5>Пример:</h5>
-                                <div class="bg-light p-3 rounded border">
-                                    <p><strong>❌ Неправильно:</strong></p>
-                                    <p class="text-muted">Договор с Ивановым Иваном</p>
-                                    <hr>
-                                    <p><strong>✅ Правильно:</strong></p>
-                                    {% raw %}<p>Договор с <code class="text-danger">{{Фамилия_Имя}}</code></p>
-                                    <p>Дата: <code class="text-danger">{{дата}}</code></p>
-                                    <p>Сумма: <code class="text-danger">{{сумма}}</code> руб.</p>{% endraw %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="alert alert-info mt-3">
-                            <h6>💡 Как писать названия меток:</h6>
-                            <ul class="mb-0">
-                                <li>✅ Можно: буквы, цифры, подчеркивания (_)</li>
-                                <li>❌ Нельзя: пробелы, дефисы, точки</li>
-                                {% raw %}<li>✅ Примеры: <code>{{Фамилия}}</code>, <code>{{дата_договора}}</code>, <code>{{сумма_рублей}}</code></li>{% endraw %}
-                                {% raw %}<li>❌ Плохо: <code>{{Фамилия Имя}}</code>, <code>{{дата-договора}}</code></li>{% endraw %}
-                            </ul>
-                        </div>
-
-                        <div class="alert alert-success">
-                            {% raw %}<strong>📝 Совет:</strong> Используйте понятные названия меток. Например: <code>{{телефон}}</code>, <code>{{адрес}}</code>, <code>{{email}}</code>{% endraw %}
-                        </div>
-                    </div>
-
-                    <!-- Шаг 2 -->
-                    <div class="instruction-step mb-5">
-                        <h3 class="text-primary">
-                            <span class="badge bg-primary me-2">Шаг 2</span>
-                            Сохранение документа
-                        </h3>
-                        <hr>
-
-                        <ol class="fs-5">
-                            <li class="mb-3">В Word нажмите <strong>"Файл"</strong> → <strong>"Сохранить как"</strong></li>
-                            <li class="mb-3">Выберите место сохранения (например, Рабочий стол)</li>
-                            <li class="mb-3">Дайте понятное имя, например: <code>Договор_шаблон.docx</code></li>
-                            <li class="mb-3">Убедитесь, что формат файла: <strong>Документ Word (.docx)</strong></li>
-                            <li class="mb-3">Нажмите <strong>"Сохранить"</strong></li>
-                        </ol>
-
-                        <div class="alert alert-warning">
-                            <strong>⚠️ Внимание!</strong> Файл должен быть в формате <code>.docx</code>, а не <code>.doc</code> (старый формат)
-                        </div>
-                    </div>
-
-                    <!-- Шаг 3 -->
-                    <div class="instruction-step mb-5">
-                        <h3 class="text-primary">
-                            <span class="badge bg-primary me-2">Шаг 3</span>
-                            Загрузка шаблона в программу
-                        </h3>
-                        <hr>
-
-                        <ol class="fs-5">
-                            <li class="mb-3">На этой странице найдите синюю область с текстом <strong>"Перетащите файл .docx сюда"</strong></li>
-                            <li class="mb-3">
-                                <strong>Способ 1 (проще):</strong>
-                                <ul>
-                                    <li>Откройте папку, где сохранен ваш документ</li>
-                                    <li>Нажмите на файл левой кнопкой мыши и, <strong>не отпуская</strong>, перетащите в синюю область</li>
-                                    <li>Отпустите кнопку мыши</li>
-                                </ul>
-                            </li>
-                            <li class="mb-3">
-                                <strong>Способ 2:</strong>
-                                <ul>
-                                    <li>Нажмите на кнопку <strong>"Выберите файл"</strong></li>
-                                    <li>Найдите ваш документ в открывшемся окне</li>
-                                    <li>Нажмите <strong>"Открыть"</strong></li>
-                                </ul>
-                            </li>
-                        </ol>
-
-                        <div class="alert alert-success">
-                            <strong>✅ Готово!</strong> Программа автоматически найдет все метки в вашем документе и создаст поля для заполнения.
-                        </div>
-                    </div>
-
-                    <!-- Шаг 4 -->
-                    <div class="instruction-step mb-5">
-                        <h3 class="text-primary">
-                            <span class="badge bg-primary me-2">Шаг 4</span>
-                            Заполнение данных
-                        </h3>
-                        <hr>
-
-                        <div class="alert alert-info">
-                            После загрузки документа появятся поля для ввода. Просто заполните их своими данными!
-                        </div>
-
-                        <div class="row">
-                            <div class="col-lg-6">
-                                <h5>Если в вашем документе были метки:</h5>
-                                <div class="bg-light p-3 rounded">
-                                    {% raw %}<code>{{Фамилия_Имя}}</code><br>
-                                    <code>{{дата}}</code><br>
-                                    <code>{{сумма}}</code>{% endraw %}
-                                </div>
-                            </div>
-                            <div class="col-lg-6">
-                                <h5>То появятся поля:</h5>
-                                <div class="bg-light p-3 rounded">
-                                    <div class="mb-2">
-                                        <label class="form-label small">Фамилия_Имя</label>
-                                        <input type="text" class="form-control form-control-sm" placeholder="Иванов Иван" disabled>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label small">дата</label>
-                                        <input type="text" class="form-control form-control-sm" placeholder="25.01.2026" disabled>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label small">сумма</label>
-                                        <input type="text" class="form-control form-control-sm" placeholder="150000" disabled>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="alert alert-success mt-3">
-                            <strong>💡 Подсказка:</strong> Просто введите данные в каждое поле. Например, вместо <code>{{телефон}}</code> будет подставлено то, что вы введете.
-                        </div>
-                    </div>
-
-                    <!-- Шаг 5 -->
-                    <div class="instruction-step mb-5">
-                        <h3 class="text-primary">
-                            <span class="badge bg-primary me-2">Шаг 5</span>
-                            Получение готового документа
-                        </h3>
-                        <hr>
-
-                        <ol class="fs-5">
-                            <li class="mb-3">Проверьте, что все поля заполнены</li>
-                            <li class="mb-3">Нажмите большую синюю кнопку <strong>"Сгенерировать документ"</strong></li>
-                            <li class="mb-3">Подождите 2-3 секунды</li>
-                            <li class="mb-3">Появится зеленое сообщение с кнопкой <strong>"Скачать"</strong></li>
-                            <li class="mb-3">Нажмите <strong>"Скачать"</strong> - файл сохранится на ваш компьютер</li>
-                            <li class="mb-3">Откройте скачанный файл в Word и проверьте - все метки заменятся на ваши данные!</li>
-                        </ol>
-
-                        <div class="alert alert-success">
-                            <strong>🎉 Поздравляем!</strong> Вы создали автоматически заполненный документ!
-                        </div>
-                    </div>
-
-                    <!-- Частые вопросы -->
-                    <div class="instruction-step">
-                        <h3 class="text-danger">
-                            ❓ Что делать, если что-то не работает?
-                        </h3>
-                        <hr>
-
-                        <div class="accordion" id="faqAccordion">
-                            <div class="accordion-item">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
-                                        Программа не находит метки в моем документе
-                                    </button>
-                                </h2>
-                                <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-                                    <div class="accordion-body">
-                                        <strong>Решение:</strong>
-                                        <ul>
-                                            {% raw %}<li>Проверьте, что метки написаны в <strong>двойных</strong> фигурных скобках: <code>{{метка}}</code></li>
-                                            <li>Убедитесь, что нет пробелов внутри: <code>{{ метка }}</code> - неправильно</li>{% endraw %}
-                                            <li>В названиях меток используйте только буквы, цифры и подчеркивания</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="accordion-item">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
-                                        Не могу загрузить файл
-                                    </button>
-                                </h2>
-                                <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-                                    <div class="accordion-body">
-                                        <strong>Решение:</strong>
-                                        <ul>
-                                            <li>Файл должен быть в формате <code>.docx</code> (не .doc, не .pdf)</li>
-                                            <li>Размер файла не должен превышать 10 МБ</li>
-                                            <li>Попробуйте пересохранить документ: Файл → Сохранить как → Документ Word (.docx)</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="accordion-item">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
-                                        В готовом документе метки не заменились
-                                    </button>
-                                </h2>
-                                <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-                                    <div class="accordion-body">
-                                        <strong>Решение:</strong>
-                                        <ul>
-                                            <li>Убедитесь, что вы заполнили ВСЕ поля перед генерацией</li>
-                                            <li>Проверьте, что названия меток в шаблоне и в полях формы совпадают ТОЧНО</li>
-                                            <li>Попробуйте заново загрузить шаблон</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="alert alert-primary mt-4">
-                        <h5>📞 Нужна помощь?</h5>
-                        <p class="mb-0">Если что-то не получается, попросите помощи у знакомого или коллеги, кто разбирается в компьютерах. Покажите ему эту инструкцию.</p>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Понятно, начинаю работать!</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно сохранения шаблона -->
-    <div class="modal fade" id="saveTemplateModal" tabindex="-1" aria-labelledby="saveTemplateModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title" id="saveTemplateModalLabel">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-bookmark-plus me-2" viewBox="0 0 16 16">
-                            <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5V2zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.482a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1H4z"/>
-                            <path d="M8 4a.5.5 0 0 1 .5.5V6H10a.5.5 0 0 1 0 1H8.5v1.5a.5.5 0 0 1-1 0V7H6a.5.5 0 0 1 0-1h1.5V4.5A.5.5 0 0 1 8 4z"/>
-                        </svg>
-                        Сохранить шаблон в библиотеку
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="saveTemplateForm">
-                        <div class="mb-3">
-                            <label for="templateName" class="form-label">Название шаблона <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="templateName" placeholder="Например: Договор аренды" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="templateDescription" class="form-label">Описание (необязательно)</label>
-                            <textarea class="form-control" id="templateDescription" rows="3" placeholder="Краткое описание шаблона..."></textarea>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="button" class="btn btn-success" id="confirmSaveTemplate">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-lg me-1" viewBox="0 0 16 16">
-                            <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022Z"/>
-                        </svg>
-                        Сохранить
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно подтверждения удаления -->
-    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title" id="confirmDeleteModalLabel">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-exclamation-triangle me-2" viewBox="0 0 16 16">
-                            <path d="M7.938 2.016A.13.13 0 0 1 8.002 2a.13.13 0 0 1 .063.016.146.146 0 0 1 .054.057l6.857 11.667c.036.06.035.124.002.183a.163.163 0 0 1-.054.06.116.116 0 0 1-.066.017H1.146a.115.115 0 0 1-.066-.017.163.163 0 0 1-.054-.06.176.176 0 0 1 .002-.183L7.884 2.073a.147.147 0 0 1 .054-.057zm1.044-.45a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566z"/>
-                            <path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995z"/>
-                        </svg>
-                        Подтверждение удаления
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p id="deleteConfirmMessage">Вы уверены, что хотите удалить этот элемент?</p>
-                    <p class="text-muted small mb-0">Это действие нельзя отменить.</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash me-1" viewBox="0 0 16 16">
-                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
-                            <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
-                        </svg>
-                        Удалить
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-</body>
-</html>
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}
