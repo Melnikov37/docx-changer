@@ -358,6 +358,13 @@ def my_templates_page():
     return render_template('my_templates.html')
 
 
+@app.route('/history-page')
+@login_required
+def history_page():
+    """Страница истории сгенерированных документов"""
+    return render_template('history.html')
+
+
 @app.route('/parse-template', methods=['POST'])
 @login_required
 def parse_template():

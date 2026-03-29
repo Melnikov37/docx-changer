@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}История — DocFiller{% endblock %}
+
+{% block content %}
+<div class="page-content-wide">
+    <div class="page-header">
+        <h1>История документов</h1>
+    </div>
+
+    <div class="app-card">
+        <div class="app-card-body p-0">
+            <div id="historyListContainer">
+                <div class="text-center p-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteConfirmMessage">Вы уверены, что хотите удалить этот документ?</p>
+                <p class="text-muted small mb-0">Это действие нельзя отменить.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Удалить</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/history.js') }}"></script>
+{% endblock %}
