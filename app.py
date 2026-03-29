@@ -9,7 +9,7 @@ import zipfile
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, flash, after_this_request
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from docxtpl import DocxTemplate
@@ -988,6 +988,11 @@ def create_snippet():
         if not name or not category_id:
             return jsonify({'error': 'Name and category are required'}), 400
 
+        # Проверяем, что категория принадлежит пользователю
+        category = db.get_snippet_category(category_id, user_id=current_user.id)
+        if not category:
+            return jsonify({'error': 'Category not found'}), 404
+
         if 'file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
 
@@ -1047,6 +1052,11 @@ def create_snippet_from_form():
         if not name or not category_id or not fields:
             return jsonify({'error': 'Name, category, and fields are required'}), 400
 
+        # Проверяем, что категория принадлежит пользователю
+        category = db.get_snippet_category(category_id, user_id=current_user.id)
+        if not category:
+            return jsonify({'error': 'Category not found'}), 404
+
         # Генерация DOCX с таблицей
         doc = Document()
         table = doc.add_table(rows=len(fields), cols=2)
@@ -1102,6 +1112,9 @@ def preview_snippet(snippet_id):
             return jsonify({'error': 'Failed to download from storage'}), 500
 
         try:
+            from docx.oxml.ns import qn
+            from html import escape as html_escape
+
             doc = Document(temp_path)
             html_parts = []
 
@@ -1110,14 +1123,13 @@ def preview_snippet(snippet_id):
 
                 if tag == 'p':
                     # Параграф
-                    from docx.oxml.ns import qn
                     texts = []
                     for run in element.findall(qn('w:r')):
                         t = run.find(qn('w:t'))
                         if t is not None and t.text:
                             # Проверяем форматирование
                             rpr = run.find(qn('w:rPr'))
-                            text = t.text
+                            text = html_escape(t.text)
                             if rpr is not None:
                                 if rpr.find(qn('w:b')) is not None:
                                     text = f'<strong>{text}</strong>'
@@ -1129,7 +1141,6 @@ def preview_snippet(snippet_id):
 
                 elif tag == 'tbl':
                     # Таблица
-                    from docx.oxml.ns import qn
                     html_parts.append('<table class="table table-bordered table-sm">')
                     for tr in element.findall(qn('w:tr')):
                         html_parts.append('<tr>')
@@ -1139,7 +1150,7 @@ def preview_snippet(snippet_id):
                                 for run in p.findall(qn('w:r')):
                                     t = run.find(qn('w:t'))
                                     if t is not None and t.text:
-                                        cell_texts.append(t.text)
+                                        cell_texts.append(html_escape(t.text))
                             html_parts.append(f'<td>{" ".join(cell_texts)}</td>')
                         html_parts.append('</tr>')
                     html_parts.append('</table>')
@@ -1167,9 +1178,17 @@ def download_snippet(snippet_id):
         if not snippet:
             return jsonify({'error': 'Snippet not found'}), 404
 
-        temp_path = os.path.join(app.config['OUTPUT_FOLDER'], snippet['original_filename'])
+        temp_path = os.path.join(app.config['OUTPUT_FOLDER'], f"dl_{uuid.uuid4()}.docx")
         if not s3_client.download_file(snippet['s3_key'], temp_path):
             return jsonify({'error': 'Failed to download from storage'}), 500
+
+        @after_this_request
+        def remove_file(response):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+            return response
 
         return send_file(
             temp_path,

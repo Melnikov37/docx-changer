@@ -1096,9 +1096,9 @@ async function buildSnippetSelectors(snippets) {
 
             let optionsHtml = '<option value="">— Не вставлять —</option>';
             for (const [catName, items] of Object.entries(grouped)) {
-                optionsHtml += `<optgroup label="${catName}">`;
+                optionsHtml += `<optgroup label="${escapeHtml(catName)}">`;
                 for (const item of items) {
-                    optionsHtml += `<option value="${item.id}">${item.name}</option>`;
+                    optionsHtml += `<option value="${item.id}">${escapeHtml(item.name)}</option>`;
                 }
                 optionsHtml += '</optgroup>';
             }

@@ -403,6 +403,18 @@ def get_snippet_categories(user_id):
 		return [dict(row) for row in cursor.fetchall()]
 
 
+def get_snippet_category(cat_id, user_id):
+	"""Получение категории по ID с проверкой владельца"""
+	with get_db_connection() as conn:
+		cursor = conn.cursor(cursor_factory=RealDictCursor)
+		cursor.execute(
+			'SELECT * FROM snippet_categories WHERE id = %s AND user_id = %s',
+			(cat_id, user_id)
+		)
+		row = cursor.fetchone()
+		return dict(row) if row else None
+
+
 def update_snippet_category(cat_id, user_id, name=None, description=None):
 	"""Обновление категории справочника"""
 	with get_db_connection() as conn:
