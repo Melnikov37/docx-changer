@@ -3,14 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}DOCX Template Filler{% endblock %}</title>
+    <title>{% block title %}DocFiller{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    {% block navbar %}
+    {% if current_user.is_authenticated %}
+    <nav class="app-navbar navbar navbar-expand-md">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <div class="brand-icon">D</div>
+                DocFiller
+            </a>
+
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="nav-tabs-custom ms-4">
+                    <li><a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">Генерация</a></li>
+                    <li><a class="nav-link {% if request.endpoint == 'my_templates_page' %}active{% endif %}" href="{{ url_for('my_templates_page') }}">Шаблоны</a></li>
+                    <li><a class="nav-link {% if request.endpoint == 'snippets_page' %}active{% endif %}" href="{{ url_for('snippets_page') }}">Справочники</a></li>
+                    <li><a class="nav-link {% if request.endpoint == 'history_page' %}active{% endif %}" href="{{ url_for('history_page') }}">История</a></li>
+                </ul>
+
+                <div class="nav-right ms-auto">
+                    <button type="button" class="btn-help" data-bs-toggle="modal" data-bs-target="#instructionModal">Справка</button>
+                    <div class="dropdown">
+                        <button class="btn btn-sm dropdown-toggle d-flex align-items-center gap-2 border-0" type="button" data-bs-toggle="dropdown">
+                            <div class="user-avatar">{{ current_user.username[0]|upper }}</div>
+                            <span style="font-size: 13px; color: var(--color-text-primary); font-weight: 500;">{{ current_user.username }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><span class="dropdown-item-text text-muted" style="font-size: 12px;">{{ current_user.email }}</span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">Выйти</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+    {% endblock %}
+
     {% block content %}{% endblock %}
+
+    <!-- Модалка справки -->
+    {% block help_modal %}{% endblock %}
+
+    <!-- Toast контейнер -->
+    <div class="toast-container"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     {% block extra_js %}{% endblock %}
