@@ -351,6 +351,13 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/my-templates')
+@login_required
+def my_templates_page():
+    """Страница библиотеки шаблонов"""
+    return render_template('my_templates.html')
+
+
 @app.route('/parse-template', methods=['POST'])
 @login_required
 def parse_template():
