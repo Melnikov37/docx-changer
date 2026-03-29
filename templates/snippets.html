@@ -1,209 +1,179 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Справочники — DOCX Template Filler</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
-</head>
-<body>
-    <div class="container py-4">
-        <header class="mb-4">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h2 mb-1">Справочники фрагментов</h1>
-                    <p class="text-muted mb-0">Управление DOCX-фрагментами для вставки в шаблоны</p>
-                </div>
-                <div class="d-flex gap-2">
-                    <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-house me-1" viewBox="0 0 16 16">
-                            <path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.707 1.5ZM13 7.207V13.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V7.207l5-5 5 5Z"/>
-                        </svg>
-                        На главную
-                    </a>
-                    <div class="dropdown">
-                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            {{ current_user.username }}
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><span class="dropdown-item-text text-muted">{{ current_user.email }}</span></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">Выйти</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </header>
+{% extends "base.html" %}
 
-        <div class="row">
-            <!-- Категории -->
-            <div class="col-md-4">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Категории</h5>
-                        <button class="btn btn-sm btn-dark" onclick="showCreateCategoryModal()">+ Создать</button>
-                    </div>
-                    <div class="card-body p-0">
-                        <div id="categoriesList">
-                            <div class="text-center p-4">
-                                <div class="spinner-border text-primary" role="status"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+{% block title %}Справочники — DocFiller{% endblock %}
 
-            <!-- Фрагменты в выбранной категории -->
-            <div class="col-md-8">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0" id="snippetsTitle">Выберите категорию</h5>
-                        <button class="btn btn-sm btn-light" id="addSnippetBtn" style="display:none;" onclick="showCreateSnippetModal()">+ Добавить фрагмент</button>
-                    </div>
-                    <div class="card-body">
-                        <div id="snippetsList">
-                            <div class="alert alert-info">Выберите категорию слева для просмотра фрагментов</div>
+{% block content %}
+<div class="page-content-wide">
+    <div class="page-header">
+        <h1>Справочники фрагментов</h1>
+    </div>
+
+    <div class="row">
+        <!-- Категории -->
+        <div class="col-md-4">
+            <div class="app-card">
+                <div class="app-card-header">
+                    <h5 class="mb-0" style="font-size: 15px; font-weight: 600;">Категории</h5>
+                    <button class="btn btn-sm btn-primary" onclick="showCreateCategoryModal()">+ Создать</button>
+                </div>
+                <div style="padding: 0;">
+                    <div id="categoriesList">
+                        <div class="text-center p-4">
+                            <div class="spinner-border text-primary" role="status"></div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Модальное окно создания категории -->
-    <div class="modal fade" id="createCategoryModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title">Новая категория</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <!-- Фрагменты -->
+        <div class="col-md-8">
+            <div class="app-card">
+                <div class="app-card-header">
+                    <h5 class="mb-0" id="snippetsTitle" style="font-size: 15px; font-weight: 600;">Выберите категорию</h5>
+                    <button class="btn btn-sm btn-primary" id="addSnippetBtn" style="display:none;" onclick="showCreateSnippetModal()">+ Добавить фрагмент</button>
                 </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Название <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="catName" placeholder="Например: Туроператоры">
+                <div class="app-card-body">
+                    <div id="snippetsList">
+                        <div class="alert alert-info mb-0">Выберите категорию слева для просмотра фрагментов</div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Описание</label>
-                        <textarea class="form-control" id="catDescription" rows="2"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button class="btn btn-warning" onclick="createCategory()">Создать</button>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Модальное окно создания фрагмента -->
-    <div class="modal fade" id="createSnippetModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">Новый фрагмент</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+<!-- Модальное окно создания категории -->
+<div class="modal fade" id="createCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Новая категория</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-field">
+                    <label>Название <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="catName" placeholder="Например: Туроператоры">
                 </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Название <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="snippetName" placeholder="Например: ООО Туроператор Солнце">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Описание</label>
-                        <textarea class="form-control" id="snippetDescription" rows="2"></textarea>
-                    </div>
+                <div class="form-field">
+                    <label>Описание</label>
+                    <textarea class="form-control" id="catDescription" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-primary" onclick="createCategory()">Создать</button>
+            </div>
+        </div>
+    </div>
+</div>
 
-                    <!-- Табы: загрузка файла / форма -->
-                    <ul class="nav nav-tabs" role="tablist">
-                        <li class="nav-item">
-                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabFile">Загрузить файл</button>
-                        </li>
-                        <li class="nav-item">
-                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabForm">Заполнить форму</button>
-                        </li>
-                    </ul>
-                    <div class="tab-content pt-3">
-                        <div class="tab-pane fade show active" id="tabFile">
-                            <div class="drop-zone p-4" id="snippetDropZone">
-                                <p class="mb-2">Перетащите .docx файл сюда или</p>
-                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('snippetFileInput').click()">Выберите файл</button>
-                                <input type="file" id="snippetFileInput" accept=".docx" hidden>
-                                <div id="snippetFileInfo" style="display:none;" class="mt-2 text-success"></div>
-                            </div>
+<!-- Модальное окно создания фрагмента -->
+<div class="modal fade" id="createSnippetModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Новый фрагмент</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-field">
+                    <label>Название <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="snippetName" placeholder="Например: ООО Туроператор Солнце">
+                </div>
+                <div class="form-field">
+                    <label>Описание</label>
+                    <textarea class="form-control" id="snippetDescription" rows="2"></textarea>
+                </div>
+
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabFile">Загрузить файл</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabForm">Заполнить форму</button>
+                    </li>
+                </ul>
+                <div class="tab-content pt-3">
+                    <div class="tab-pane fade show active" id="tabFile">
+                        <div class="drop-zone p-4" id="snippetDropZone">
+                            <p class="drop-zone-text mb-2">Перетащите .docx файл сюда</p>
+                            <button type="button" class="btn-select-file" onclick="document.getElementById('snippetFileInput').click()">Выберите файл</button>
+                            <input type="file" id="snippetFileInput" accept=".docx" hidden>
+                            <div id="snippetFileInfo" style="display:none;" class="mt-2 text-success"></div>
                         </div>
-                        <div class="tab-pane fade" id="tabForm">
-                            <div id="formFields">
-                                <div class="row mb-2 form-field-row">
-                                    <div class="col-5">
-                                        <input type="text" class="form-control form-control-sm" placeholder="Название поля" name="field_key">
-                                    </div>
-                                    <div class="col-5">
-                                        <input type="text" class="form-control form-control-sm" placeholder="Значение" name="field_value">
-                                    </div>
-                                    <div class="col-2">
-                                        <button class="btn btn-sm btn-outline-danger" onclick="this.closest('.form-field-row').remove()">X</button>
-                                    </div>
+                    </div>
+                    <div class="tab-pane fade" id="tabForm">
+                        <div id="formFields">
+                            <div class="row mb-2 form-field-row">
+                                <div class="col-5">
+                                    <input type="text" class="form-control form-control-sm" placeholder="Название поля" name="field_key">
+                                </div>
+                                <div class="col-5">
+                                    <input type="text" class="form-control form-control-sm" placeholder="Значение" name="field_value">
+                                </div>
+                                <div class="col-2">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="this.closest('.form-field-row').remove()">X</button>
                                 </div>
                             </div>
-                            <button class="btn btn-sm btn-outline-primary mt-2" onclick="addFormField()">+ Добавить поле</button>
                         </div>
+                        <button class="btn btn-sm btn-outline-primary mt-2" onclick="addFormField()">+ Добавить поле</button>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button class="btn btn-primary" onclick="createSnippet()">Создать</button>
-                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-primary" onclick="createSnippet()">Создать</button>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Модальное окно просмотра фрагмента -->
-    <div class="modal fade" id="previewSnippetModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-info text-white">
-                    <h5 class="modal-title" id="previewTitle">Просмотр фрагмента</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+<!-- Модальное окно просмотра фрагмента -->
+<div class="modal fade" id="previewSnippetModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewTitle">Просмотр фрагмента</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent">
+                    <div class="text-center"><div class="spinner-border text-primary"></div></div>
                 </div>
-                <div class="modal-body">
-                    <div id="previewContent">
-                        <div class="text-center"><div class="spinner-border text-primary"></div></div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-outline-primary" id="previewDownloadBtn">Скачать оригинал</button>
-                    <button class="btn btn-warning" id="previewReplaceBtn">Заменить файл</button>
-                    <input type="file" id="replaceFileInput" accept=".docx" hidden>
-                    <button class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-primary" id="previewDownloadBtn">Скачать оригинал</button>
+                <button class="btn btn-outline-secondary" id="previewReplaceBtn">Заменить файл</button>
+                <input type="file" id="replaceFileInput" accept=".docx" hidden>
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Модальное окно подтверждения удаления -->
-    <div class="modal fade" id="confirmDeleteModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title">Подтверждение удаления</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p id="snippetDeleteMessage">Вы уверены?</p>
-                    <p class="text-muted small mb-0">Это действие нельзя отменить.</p>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button class="btn btn-danger" id="snippetConfirmDeleteBtn">Удалить</button>
-                </div>
+<!-- Модальное окно подтверждения удаления -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="snippetDeleteMessage">Вы уверены?</p>
+                <p class="text-muted small mb-0">Это действие нельзя отменить.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-danger" id="snippetConfirmDeleteBtn">Удалить</button>
             </div>
         </div>
     </div>
+</div>
+{% endblock %}
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{{ url_for('static', filename='js/snippets.js') }}"></script>
-</body>
-</html>
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/snippets.js') }}"></script>
+{% endblock %}
