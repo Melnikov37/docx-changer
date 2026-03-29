@@ -1,19 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Регистрация - DOCX Template Filler{% endblock %}
+{% block title %}Регистрация — DocFiller{% endblock %}
+
+{% block navbar %}{% endblock %}
 
 {% block content %}
-<nav class="navbar navbar-light bg-white border-bottom">
-    <div class="container">
-        <a class="navbar-brand" href="/">
-            <strong>DOCX Template Filler</strong>
-        </a>
-    </div>
-</nav>
 <div class="auth-container">
     <div class="auth-card">
         <div class="auth-header">
-            <h1 class="auth-title">DOCX Template Filler</h1>
+            <div class="auth-brand">
+                <div class="brand-icon" style="width:36px;height:36px;background:var(--color-primary-gradient);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:16px;">D</div>
+                <span style="font-weight:700;font-size:18px;color:var(--color-text-primary);">DocFiller</span>
+            </div>
+            <h1 class="auth-title">Регистрация</h1>
             <p class="auth-subtitle">Создайте новый аккаунт</p>
         </div>
 
@@ -22,40 +21,36 @@
                 {% for category, message in messages %}
                     <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
                         {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
 
         <form method="POST" class="auth-form" id="registerForm">
-            <div class="mb-3">
-                <label for="username" class="form-label">Имя пользователя</label>
+            <div class="form-field">
+                <label for="username">Имя пользователя</label>
                 <input type="text" class="form-control" id="username" name="username"
                        placeholder="Придумайте имя пользователя" minlength="3" required autofocus>
                 <div class="form-text">Минимум 3 символа</div>
             </div>
-
-            <div class="mb-3">
-                <label for="email" class="form-label">Email</label>
+            <div class="form-field">
+                <label for="email">Email</label>
                 <input type="email" class="form-control" id="email" name="email"
                        placeholder="Введите ваш email" required>
             </div>
-
-            <div class="mb-3">
-                <label for="password" class="form-label">Пароль</label>
+            <div class="form-field">
+                <label for="password">Пароль</label>
                 <input type="password" class="form-control" id="password" name="password"
                        placeholder="Придумайте пароль" minlength="6" required>
                 <div class="form-text">Минимум 6 символов</div>
             </div>
-
-            <div class="mb-3">
-                <label for="password_confirm" class="form-label">Подтвердите пароль</label>
+            <div class="form-field">
+                <label for="password_confirm">Подтвердите пароль</label>
                 <input type="password" class="form-control" id="password_confirm" name="password_confirm"
                        placeholder="Повторите пароль" required>
             </div>
-
-            <div class="d-grid">
+            <div class="d-grid mt-3">
                 <button type="submit" class="btn btn-primary btn-lg">Зарегистрироваться</button>
             </div>
         </form>
@@ -66,15 +61,21 @@
     </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script>
 document.getElementById('registerForm').addEventListener('submit', function(e) {
     const password = document.getElementById('password').value;
     const passwordConfirm = document.getElementById('password_confirm').value;
-
     if (password !== passwordConfirm) {
         e.preventDefault();
-        showToast('error', 'Ошибка', 'Пароли не совпадают!');
+        const field = document.getElementById('password_confirm');
+        field.classList.add('is-invalid');
+        let feedback = field.nextElementSibling;
+        if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+            feedback = document.createElement('div');
+            feedback.className = 'invalid-feedback';
+            field.parentNode.appendChild(feedback);
+        }
+        feedback.textContent = 'Пароли не совпадают';
         return false;
     }
 });

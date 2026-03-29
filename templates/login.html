@@ -1,20 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}Вход - DOCX Template Filler{% endblock %}
+{% block title %}Вход — DocFiller{% endblock %}
+
+{% block navbar %}{% endblock %}
 
 {% block content %}
-<nav class="navbar navbar-light bg-white border-bottom">
-    <div class="container">
-        <a class="navbar-brand" href="/">
-            <strong>DOCX Template Filler</strong>
-        </a>
-    </div>
-</nav>
 <div class="auth-container">
     <div class="auth-card">
         <div class="auth-header">
-            <h1 class="auth-title">DOCX Template Filler</h1>
-            <p class="auth-subtitle">Войдите в свой аккаунт</p>
+            <div class="auth-brand">
+                <div class="brand-icon" style="width:36px;height:36px;background:var(--color-primary-gradient);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:16px;">D</div>
+                <span style="font-weight:700;font-size:18px;color:var(--color-text-primary);">DocFiller</span>
+            </div>
+            <h1 class="auth-title">Вход в аккаунт</h1>
+            <p class="auth-subtitle">Введите свои данные для входа</p>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -22,26 +21,24 @@
                 {% for category, message in messages %}
                     <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
                         {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
 
         <form method="POST" class="auth-form">
-            <div class="mb-3">
-                <label for="username" class="form-label">Имя пользователя</label>
+            <div class="form-field">
+                <label for="username">Имя пользователя</label>
                 <input type="text" class="form-control" id="username" name="username"
                        placeholder="Введите имя пользователя" required autofocus>
             </div>
-
-            <div class="mb-3">
-                <label for="password" class="form-label">Пароль</label>
+            <div class="form-field">
+                <label for="password">Пароль</label>
                 <input type="password" class="form-control" id="password" name="password"
                        placeholder="Введите пароль" required>
             </div>
-
-            <div class="d-grid">
+            <div class="d-grid mt-3">
                 <button type="submit" class="btn btn-primary btn-lg">Войти</button>
             </div>
         </form>
@@ -56,13 +53,11 @@
 document.querySelector('.auth-form').addEventListener('submit', function(e) {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
-
     if (username.length < 3) {
         e.preventDefault();
         showValidationError('username', 'Имя пользователя должно быть минимум 3 символа');
         return false;
     }
-
     if (password.length < 6) {
         e.preventDefault();
         showValidationError('password', 'Пароль должен быть минимум 6 символов');
@@ -73,22 +68,17 @@ document.querySelector('.auth-form').addEventListener('submit', function(e) {
 function showValidationError(fieldId, message) {
     const field = document.getElementById(fieldId);
     field.classList.add('is-invalid');
-
     const oldFeedback = field.nextElementSibling;
     if (oldFeedback && oldFeedback.classList.contains('invalid-feedback')) {
         oldFeedback.remove();
     }
-
     const feedback = document.createElement('div');
     feedback.className = 'invalid-feedback';
     feedback.textContent = message;
     field.parentNode.appendChild(feedback);
-
     field.addEventListener('input', function() {
         field.classList.remove('is-invalid');
-        if (feedback.parentNode) {
-            feedback.remove();
-        }
+        if (feedback.parentNode) feedback.remove();
     }, { once: true });
 }
 </script>
