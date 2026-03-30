@@ -44,6 +44,13 @@ body {
     position: sticky;
     top: 0;
     z-index: 1030;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.app-navbar > .container-fluid {
+    height: 100%;
+    align-items: center;
 }
 
 .app-navbar .navbar-brand {
@@ -70,10 +77,15 @@ body {
     font-size: 14px;
 }
 
+.app-navbar .navbar-collapse {
+    height: 100%;
+    align-items: center;
+}
+
 .app-navbar .nav-tabs-custom {
     display: flex;
     gap: 2px;
-    height: 56px;
+    height: 100%;
     border: none;
     margin: 0;
     padding: 0;
@@ -83,6 +95,7 @@ body {
 .app-navbar .nav-tabs-custom .nav-link {
     display: flex;
     align-items: center;
+    height: 100%;
     padding: 0 16px;
     color: var(--color-text-secondary);
     font-size: 13px;
